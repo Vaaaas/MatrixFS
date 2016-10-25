@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MatrixFS</title>
+    <!-- Material Design fonts -->
+    <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Roboto:300,400,500,700">
+    <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/icon?family=Material+Icons">
+
+    <!-- jQuery -->
+    <script src="../bower_components/jquery/dist/jquery.min.js"></script>
+
+    <!-- Tether -->
+    <script src="../bower_components/tether/dist/js/tether.min.js"></script>
+    <link rel="stylesheet" href="../bower_components/tether/dist/css/tether.min.css">
+
+    <!-- Bootstrap -->
+    <script src="../bower_components/bootstrap/dist/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="../bower_components/bootstrap/dist/css/bootstrap.min.css">
+
+    <!-- Bootstrap Material Design -->
+    <link rel="stylesheet" href="../js/lib/bootstrap-material-design/ripples.min.css">
+    <link rel="stylesheet" href="../js/lib/bootstrap-material-design/bootstrap-material-design.min.css">
+    <script src="../js/lib/bootstrap-material-design/material.min.js"></script>
+    <script src="../js/lib/bootstrap-material-design/ripples.min.js"></script>
+
+</head>
+<body>
+
+<div class="form-group label-static"><label for="i2" class="control-label">label-static</label> <input type="email"
+class="form-control"
+id="i2"
+placeholder="placeholder attribute">
+<p class="help-block">This is a hint as a <code>p.help-block.hint</code></p></div>
+<div class="form-group label-floating"><label for="i5" class="control-label">label-floating</label> <input type="email"
+class="form-control"
+id="i5">
+<span class="help-block">This is a hint as a <code>span.help-block.hint</code></span></div>
+<div class="form-group label-placeholder"><label for="i5p" class="control-label">label-placeholder</label> <input
+type="email" class="form-control" id="i5p"> <span class="help-block">This is a hint as a <code>span.help-block.hint</code></span>
+</div>
+
+<div class="form-group"><label class="col-lg-2 control-label">Radios</label>
+<div class="col-lg-10">
+<div class="radio radio-primary"><label> <input type="radio" name="optionsRadios" checked=""> Option one
+</label></div>
+<div class="radio radio-primary"><label> <input type="radio" name="optionsRadios"> Option two </label></div>
+</div>
+</div>
+
+<div class="card">
+<div class="card-height-indicator"></div>
+<div class="card-content">
+<div class="card-image"><img src="http://www.iplaysoft.com/plus/hotimg/pd12.jpg" alt="Loading image...">
+<h3 class="card-image-headline">Lorem Ipsum Dolor</h3></div>
+<div class="card-body"><p>Lorem Ipsum is simply dummy text of the printing and typesetting industry.</p></div>
+<footer class="card-footer">
+<button class="btn btn-flat">Share</button>
+<button class="btn btn-flat btn-warning">Learn More</button>
+</footer>
+</div>
+</div>
+
+<i class="material-icons">face</i>
+
+<table class="table table-striped table-hover ">
+    <thead>
+    <tr>
+        <th>#</th>
+        <th>Column heading</th>
+        <th>Column heading</th>
+        <th>Column heading</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td>1</td>
+        <td>Column content</td>
+        <td>Column content</td>
+        <td>Column content</td>
+    </tr>
+    <tr>
+        <td>2</td>
+        <td>Column content</td>
+        <td>Column content</td>
+        <td>Column content</td>
+    </tr>
+    <tr class="info">
+        <td>3</td>
+        <td>Column content</td>
+        <td>Column content</td>
+        <td>Column content</td>
+    </tr>
+    <tr class="success">
+        <td>4</td>
+        <td>Column content</td>
+        <td>Column content</td>
+        <td>Column content</td>
+    </tr>
+    <tr class="danger">
+        <td>5</td>
+        <td>Column content</td>
+        <td>Column content</td>
+        <td>Column content</td>
+    </tr>
+    <tr class="warning">
+        <td>6</td>
+        <td>Column content</td>
+        <td>Column content</td>
+        <td>Column content</td>
+    </tr>
+    <tr class="active">
+        <td>7</td>
+        <td>Column content</td>
+        <td>Column content</td>
+        <td>Column content</td>
+    </tr>
+    </tbody>
+</table>
+
+<a href="javascript:void(0)" class="btn btn-raised active"><code>.active</code></a>
+<a href="javascript:void(0)" class="btn btn-raised btn-default">Default</a>
+<a href="javascript:void(0)" class="btn btn-raised btn-primary">Primary</a>
+<a href="javascript:void(0)" class="btn btn-raised btn-success">Success</a>
+<a href="javascript:void(0)" class="btn btn-raised btn-info">Info</a>
+<a href="javascript:void(0)" class="btn btn-raised btn-warning">Warning</a>
+<a href="javascript:void(0)" class="btn btn-raised btn-danger">Danger</a>
+<a href="javascript:void(0)" class="btn btn-raised btn-link">Link</a>
+
+<script>
+    $(function () {
+        $.material.init();
+    });
+</script>
+
+<script>
+
+    (function () {
+
+        var $button = $("<div id='source-button' class='btn btn-primary btn-xs'>&lt; &gt;</div>").click(function () {
+            var index = $('.bs-component').index($(this).parent());
+            $.get(window.location.href, function (data) {
+                var html = $(data).find('.bs-component').eq(index).html();
+                html = cleanSource(html);
+                $("#source-modal pre").text(html);
+                $("#source-modal").modal();
+            })
+
+        });
+
+        $('.bs-component [data-toggle="popover"]').popover();
+        $('.bs-component [data-toggle="tooltip"]').tooltip();
+
+        $(".bs-component").hover(function () {
+            $(this).append($button);
+            $button.show();
+        }, function () {
+            $button.hide();
+        });
+
+        function cleanSource(html) {
+            var lines = html.split(/\n/);
+
+            lines.shift();
+            lines.splice(-1, 1);
+
+            var indentSize = lines[0].length - lines[0].trim().length,
+                    re = new RegExp(" {" + indentSize + "}");
+
+            lines = lines.map(function (line) {
+                if (line.match(re)) {
+                    line = line.substring(indentSize);
+                }
+
+                return line;
+            });
+
+            lines = lines.join("\n");
+
+            return lines;
+        }
+
+        $(".icons-material .icon").each(function () {
+            $(this).after("<br><br><code>" + $(this).attr("class").replace("icon ", "") + "</code>");
+        });
+
+    })();
+
+
+</script>
+</body>
+</html>
