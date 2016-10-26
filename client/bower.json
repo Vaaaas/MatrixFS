@@ -1,6 +1,6 @@
 {
   "name": "matrixfs",
-  "description": "A distributed file system in Go",
+  "description": "A distributed file system in Golang",
   "main": "index.js",
   "license": "ISC",
   "homepage": "index.html",

@@ -1,4 +1,4 @@
-package matrix
+package main
 
 import (
 	"flag"
@@ -46,5 +46,7 @@ func main() {
 	if args_num != 0 {
 		fmt.Printf("sum of Args is %d\n", args_num)
 		fmt.Printf("Arg is : %s\n", flag.Args()[0])
+	}else{
+		fmt.Printf("sum of Args is %d\n", args_num)
 	}
 }
