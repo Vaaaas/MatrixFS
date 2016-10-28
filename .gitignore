@@ -83,3 +83,10 @@ jspm_packages
 #packages from bower
 bower_components
 /client/log/
+
+File/File.iml
+
+SysConfig/SysConfig.iml
+
+client/Server
+/client/temp/
