@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/golang/glog"
 	"flag"
-	"fmt"
 	"Vaaaas/MatrixFS/SysConfig"
 	"Vaaaas/MatrixFS/File"
 )
@@ -31,9 +30,9 @@ func main() {
 	//SysConfig & File 包测试
 	SysConfig.InitConfig(fault, row)
 	var file01 File.File
-	file01.Init("/Users/vaaaas/Desktop/READING/PDF.pdf")
-	name, ext := file01.SliceFileName()
-	fmt.Println(name + " , " + ext)
+	file01.Init("/Users/vaaaas/Desktop/READING/FILE01")
+	//name, ext := file01.SliceFileName()
+	//fmt.Println(name + " , " + ext)
 	file01.InitDataFiles()
 	file01.InitRddtFiles()
 	file01.GetFile("/Users/vaaaas/Desktop/WRITING/")

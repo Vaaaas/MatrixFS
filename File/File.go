@@ -16,7 +16,7 @@ type File struct {
 	FileFullName string
 	Size         int64
 	FillLast     bool
-	FillSize     int
+	FillSize     int64
 	SliceSize    int64
 }
 
@@ -35,7 +35,7 @@ func (file *File) Init(source string) error {
 		if ((file.Size % (int64)(SysConfig.SysConfig.SliceNum)) != 0) {
 			file.FillLast = true
 			file.SliceSize = file.Size / (int64)(SysConfig.SysConfig.SliceNum) + 1
-			file.FillSize = (int)(file.SliceSize * (int64)(SysConfig.SysConfig.SliceNum) - file.Size)
+			file.FillSize = file.SliceSize * (int64)(SysConfig.SysConfig.SliceNum) - file.Size
 		} else {
 			file.FillLast = false
 			file.SliceSize = file.Size / (int64)(SysConfig.SysConfig.SliceNum)
@@ -99,7 +99,6 @@ func (file File) SliceFileName() (string, string) {
 	}
 }
 
-//todo : 代码有重复，待优化
 func (file File) InitDataFiles() error {
 	source := "./temp/" + file.FileFullName
 
@@ -114,56 +113,10 @@ func (file File) InitDataFiles() error {
 		}
 	}()
 
-	buffer := make([]byte, file.SliceSize)
-	for i := 0; i < SysConfig.SysConfig.SliceNum; i++ {
-		n, err := sourceFile.Read(buffer)
-		if err != nil && err != io.EOF {
-			glog.Error("buffer读取文件失败 " + strconv.Itoa(i))
-			panic(err)
-		}
-		if n == 0 {
-			break;
-		}
-
-		dataPosition := i / SysConfig.SysConfig.RowNum
-		rowPosition := i % SysConfig.SysConfig.RowNum
-		outFile, err := os.Create("./temp/Data." + strconv.Itoa(dataPosition) + "/" + file.FileFullName + "." + strconv.Itoa(dataPosition) + strconv.Itoa(rowPosition))
-		if err != nil {
-			glog.Error("新建数据分块文件失败 " + "./temp/Data." + strconv.Itoa(dataPosition) + "/" + file.FileFullName + "." + strconv.Itoa(dataPosition) + strconv.Itoa(rowPosition))
-			panic(err)
-		}
-		defer func() {
-			if err := outFile.Close(); err != nil {
-				panic(err)
-			}
-		}()
-
-		if (file.FillLast&&i == SysConfig.SysConfig.SliceNum - 1) {
-			if (int64)(file.FillSize) != file.SliceSize {
-				start := file.SliceSize - (int64)(file.FillSize) - 1
-				for j := 0; j < file.FillSize; j++ {
-					buffer[start + (int64)(j)] = (byte)(0)
-				}
-
-				if _, err := outFile.Write(buffer[:file.SliceSize]); err != nil {
-					glog.Error("写入数据分块失败 " + strconv.Itoa(i))
-					panic(err)
-				}
-			} else {
-
-				for j := 0; j < file.FillSize; j++ {
-					buffer[j] = (byte)(0)
-				}
-
-				if _, err := outFile.Write(buffer[:file.FillSize]); err != nil {
-					glog.Error("写入数据分块失败 " + strconv.Itoa(i))
-					panic(err)
-				}
-			}
-
-		} else {
-			if _, err := outFile.Write(buffer[:n]); err != nil {
-				glog.Error("写入数据分块失败 " + strconv.Itoa(i))
+	for i := 0; i < SysConfig.SysConfig.DataNum; i++ {
+		for j := 0; j < SysConfig.SysConfig.RowNum; j++ {
+			if file.initOneDataFile(i, j, sourceFile) != nil {
+				glog.Errorf("生成单个数据文件文件失败 i=%d j=%d", i, j)
 				panic(err)
 			}
 		}
@@ -171,8 +124,61 @@ func (file File) InitDataFiles() error {
 	return nil
 }
 
+func (file File) initOneDataFile(col int, row int, sourceFile *os.File) error {
+	outFile, err := os.Create("./temp/Data." + strconv.Itoa(col) + "/" + file.FileFullName + "." + strconv.Itoa(col) + strconv.Itoa(row))
+	if err != nil {
+		glog.Error("新建数据分块文件失败 " + "./temp/Data." + strconv.Itoa(col) + "/" + file.FileFullName + "." + strconv.Itoa(col) + strconv.Itoa(row))
+		panic(err)
+	}
+	defer func() {
+		if err := outFile.Close(); err != nil {
+			panic(err)
+		}
+	}()
+
+	buffer := make([]byte, file.SliceSize)
+	n, err := sourceFile.Read(buffer)
+	if err != nil && err != io.EOF {
+		glog.Errorf("buffer读取文件失败 col=%d row=%d", col, row)
+		panic(err)
+	}
+
+	if file.FillLast && (int64)(n) != file.SliceSize {
+		if (int64)(n) == 0 {
+			tempBuffer := make([]byte, file.SliceSize)
+			for j := 0; (int64)(j) < file.FillSize; j++ {
+				tempBuffer[j] = (byte)(0)
+				if _, err := outFile.Write(buffer[:file.SliceSize]); err != nil {
+					glog.Errorf("写入数据分块失败 col=%d row=%d", col, row)
+					panic(err)
+				}
+				return nil
+			}
+		} else {
+			for j := n; (int64)(j) < file.FillSize; j++ {
+				buffer[j] = (byte)(0)
+			}
+
+		}
+	} else {
+
+	}
+
+	if _, err := outFile.Write(buffer[:file.SliceSize]); err != nil {
+		glog.Errorf("写入数据分块失败 col=%d row=%d", col, row)
+		panic(err)
+	}
+	return nil
+}
+
 func (file File) GetFile(targetFolder string) error {
 	target, err := os.Create(targetFolder + file.FileFullName)
+	var realSliceNum int64
+	if file.Size % file.SliceSize != 0 {
+		realSliceNum = file.Size / file.SliceSize + 1
+	} else {
+		realSliceNum = file.Size / file.SliceSize
+	}
 	if err != nil {
 		glog.Error("无法新建目标文件")
 		panic(err)
@@ -184,7 +190,7 @@ func (file File) GetFile(targetFolder string) error {
 	}()
 
 	buffer := make([]byte, file.SliceSize)
-	for i := 0; i < SysConfig.SysConfig.SliceNum; i++ {
+	for i := 0; (int64)(i) < realSliceNum; i++ {
 		dataPosition := i / SysConfig.SysConfig.RowNum
 		rowPosition := i % SysConfig.SysConfig.RowNum
 
@@ -203,13 +209,10 @@ func (file File) GetFile(targetFolder string) error {
 			glog.Error("buffer读取文件失败 " + strconv.Itoa(i))
 			panic(err)
 		}
-		if n == 0 {
-			break;
-		}
 
-		if (file.FillLast&&i == SysConfig.SysConfig.SliceNum - 1) {
+		if (file.FillLast&&(int64)(i) == realSliceNum - 1) {
 			if (int64)(file.FillSize) != file.SliceSize {
-				if _, err := target.Write(buffer[:(n - file.FillSize)]); err != nil {
+				if _, err := target.Write(buffer[:((int64)(n) - file.FillSize%file.SliceSize)]); err != nil {
 					glog.Error("写入数据分块失败 " + strconv.Itoa(i))
 					panic(err)
 				}
