@@ -7,6 +7,7 @@ import (
 	"Vaaaas/MatrixFS/File"
 	"fmt"
 	"net/http"
+	"log"
 )
 
 func main() {
@@ -26,9 +27,16 @@ func main() {
 
 	testFileHandle()
 
-	http.Handle("/view/", http.FileServer(http.Dir("view")))
+	//http.Handle("/view/", http.FileServer(http.Dir("./view/")))
+	http.Handle("/view/", http.StripPrefix("/view/", http.FileServer(http.Dir("./view/"))))
+	http.Handle("/view/", http.StripPrefix("/view/", http.FileServer(http.Dir("./view/"))))
+	http.Handle("/view/", http.StripPrefix("/view/", http.FileServer(http.Dir("./view/"))))
 
-	http.ListenAndServe(":8080", nil)
+
+
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		log.Panic(err)
+	}
 }
 
 func testFileHandle() {
