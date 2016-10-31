@@ -155,13 +155,10 @@ func (file File) initOneDataFile(col int, row int, sourceFile *os.File) error {
 				return nil
 			}
 		} else {
-			for j := n; (int64)(j) < file.FillSize; j++ {
+			for j := n; (int64)(j) < file.SliceSize; j++ {
 				buffer[j] = (byte)(0)
 			}
-
 		}
-	} else {
-
 	}
 
 	if _, err := outFile.Write(buffer[:file.SliceSize]); err != nil {
@@ -212,7 +209,7 @@ func (file File) GetFile(targetFolder string) error {
 
 		if (file.FillLast&&(int64)(i) == realSliceNum - 1) {
 			if (int64)(file.FillSize) != file.SliceSize {
-				if _, err := target.Write(buffer[:((int64)(n) - file.FillSize%file.SliceSize)]); err != nil {
+				if _, err := target.Write(buffer[:((int64)(n) - file.FillSize % file.SliceSize)]); err != nil {
 					glog.Error("写入数据分块失败 " + strconv.Itoa(i))
 					panic(err)
 				}
@@ -293,8 +290,6 @@ func (file File)initOneRddtFile(startFolderNum, k, rddtNum int) error {
 			}
 			for byteCounter := 0; byteCounter < len(buffer); byteCounter++ {
 				buffer[byteCounter] = buffer[byteCounter] ^ tempBytes[byteCounter]
-				glog.Info(buffer[byteCounter] + buffer[byteCounter] + tempBytes[byteCounter])
-
 			}
 		}
 		if i == SysConfig.SysConfig.RowNum - 1 {

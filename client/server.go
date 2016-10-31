@@ -5,6 +5,8 @@ import (
 	"flag"
 	"Vaaaas/MatrixFS/SysConfig"
 	"Vaaaas/MatrixFS/File"
+	"fmt"
+	"net/http"
 )
 
 func main() {
@@ -13,26 +15,28 @@ func main() {
 	//初始化命令行参数
 	flag.IntVar(&fault, "fault", 2, "系统容错数量")
 	flag.IntVar(&row, "row", 2, "文件阵列行数")
-
 	//初始化命令行参数
 	//调试时log_dir="./log"
 	flag.Parse()
-
 	//退出时调用，确保日志写入文件
 	defer glog.Flush()
-
+	//初始化系统配置
+	SysConfig.InitConfig(fault, row)
 	glog.Info("Server start here")
 
-	//其他日志类型
-	//glog.Warning("Warning!")
-	//glog.Error("Error!")
+	testFileHandle()
 
+	http.Handle("/view/", http.FileServer(http.Dir("view")))
+
+	http.ListenAndServe(":8080", nil)
+}
+
+func testFileHandle() {
 	//SysConfig & File 包测试
-	SysConfig.InitConfig(fault, row)
 	var file01 File.File
-	file01.Init("/Users/vaaaas/Desktop/READING/FILE01")
-	//name, ext := file01.SliceFileName()
-	//fmt.Println(name + " , " + ext)
+	file01.Init("/Users/vaaaas/Desktop/READING/PDF.pdf")
+	name, ext := file01.SliceFileName()
+	fmt.Println(name + " , " + ext)
 	file01.InitDataFiles()
 	file01.InitRddtFiles()
 	file01.GetFile("/Users/vaaaas/Desktop/WRITING/")
