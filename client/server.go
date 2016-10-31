@@ -29,9 +29,8 @@ func main() {
 
 	//http.Handle("/view/", http.FileServer(http.Dir("./view/")))
 	http.Handle("/view/", http.StripPrefix("/view/", http.FileServer(http.Dir("./view/"))))
-	http.Handle("/view/", http.StripPrefix("/view/", http.FileServer(http.Dir("./view/"))))
-	http.Handle("/view/", http.StripPrefix("/view/", http.FileServer(http.Dir("./view/"))))
-
+	http.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.Dir("./js/"))))
+	http.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("./css/"))))
 
 
 	if err := http.ListenAndServe(":8080", nil); err != nil {
