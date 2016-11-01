@@ -98,11 +98,11 @@ func filePageHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-
+	fmt.Println(len(File.AllFiles))
 
 	t, err := template.ParseFiles("view/file.html")
 	if (err != nil) {
-		log.Println(err)
+		fmt.Println(err)
 	}
 	t.Execute(w, nil)
 }
