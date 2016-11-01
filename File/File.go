@@ -9,7 +9,10 @@ import (
 	"io"
 	"strconv"
 	"math"
+	"fmt"
 )
+
+var AllFiles []File
 
 //使用时需要通过File(包名).File(结构体名)来访问
 type File struct {
@@ -42,6 +45,9 @@ func (file *File) Init(source string) error {
 			file.FillSize = 0
 		}
 		glog.Infof("%+v ", file)
+		//todo : 在内存中的具体行为待观察
+		allFileList := append(AllFiles, *file)
+		fmt.Printf("%+v", allFileList[0])
 		//将文件复制到temp目录
 		file.cpyFile(source)
 		return nil
@@ -301,3 +307,5 @@ func (file File)initOneRddtFile(startFolderNum, k, rddtNum int) error {
 	}
 	return nil
 }
+
+//todo : 删除所有临时文件

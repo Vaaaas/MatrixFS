@@ -37,12 +37,17 @@ logs
 #IDEA ide files
 .idea
 
+client/Server
 
-/client/log/
+client/log/
+
+client/temp/
+
 
 File/File.iml
 
 SysConfig/SysConfig.iml
 
-client/Server
-/client/temp/
+Node/Node.iml
+
+
