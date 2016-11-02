@@ -15,24 +15,28 @@ import (
 func main() {
 	var fault, row int
 
-	//初始化命令行参数
+	//Init command line args
 	flag.IntVar(&fault, "fault", 2, "系统容错数量")
 	flag.IntVar(&row, "row", 2, "文件阵列行数")
-	//初始化命令行参数
-	//调试时log_dir="./log"
+	//when debug, log_dir="./log"
 	flag.Parse()
-	//退出时调用，确保日志写入文件
+	//Trigger on exit, write log into files
 	defer glog.Flush()
-	//初始化系统配置
+	//Init system config(Moved to indexPageHandler)
 	//SysConfig.InitConfig(fault, row)
 	glog.Info("Server start here")
 
 	//testFileHandle()
 
+	//Pages
 	http.HandleFunc("/", rootHandler)
 	http.HandleFunc("/index", indexPageHandler)
 	http.HandleFunc("/file", filePageHandler)
 	http.HandleFunc("/node", nodePageHandler)
+
+	http.HandleFunc("/upload",uploadHandler)
+	http.HandleFunc("/download",downloadHandler)
+	http.HandleFunc("/delete",deleteHandler)
 
 	http.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.Dir("./js/"))))
 	http.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("./css/"))))
@@ -74,7 +78,7 @@ func indexPageHandler(w http.ResponseWriter, r *http.Request) {
 
 func filePageHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	fmt.Println("mathod: ", r.Method)
+	fmt.Println("method: ", r.Method)
 	if r.Method == "GET" {
 		if !sysConfigured() {
 			fmt.Println("not configured, redirect to index.html")
@@ -94,7 +98,8 @@ func filePageHandler(w http.ResponseWriter, r *http.Request) {
 				glog.Error("rowNumber参数转换为int失败")
 			}
 			SysConfig.InitConfig(faultNum, rowNum)
-			testFileHandle()
+			testFileHandle("/Users/vaaaas/Desktop/READING/PDF.pdf")
+			testFileHandle("/Users/vaaaas/Desktop/READING/MP3.mp3")
 		}
 	}
 
@@ -104,17 +109,30 @@ func filePageHandler(w http.ResponseWriter, r *http.Request) {
 	if (err != nil) {
 		fmt.Println(err)
 	}
-	t.Execute(w, nil)
+	t.Execute(w, File.AllFiles)
 }
 
 func nodePageHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func testFileHandle() {
-	//SysConfig & File 包测试
+func uploadHandler(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func downloadHandler(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func deleteHandler(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func testFileHandle(source string) {
+	//SysConfig & File pkg test
+	fmt.Println("Start test FileHandler")
 	var file01 File.File
-	file01.Init("/Users/vaaaas/Desktop/READING/PDF.pdf")
+	file01.Init(source)
 	name, ext := file01.SliceFileName()
 	fmt.Println(name + " , " + ext)
 	file01.InitDataFiles()

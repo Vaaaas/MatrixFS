@@ -12,7 +12,7 @@ import (
 	"fmt"
 )
 
-var AllFiles []File
+var AllFiles = []File{}
 
 //使用时需要通过File(包名).File(结构体名)来访问
 type File struct {
@@ -46,8 +46,10 @@ func (file *File) Init(source string) error {
 		}
 		glog.Infof("%+v ", file)
 		//todo : 在内存中的具体行为待观察
-		allFileList := append(AllFiles, *file)
-		fmt.Printf("%+v", allFileList[0])
+		AllFiles = append(AllFiles, *file)
+
+		fmt.Printf("All Files: %+v  ,len: %d\n", AllFiles[len(AllFiles) - 1], len(AllFiles))
+
 		//将文件复制到temp目录
 		file.cpyFile(source)
 		return nil

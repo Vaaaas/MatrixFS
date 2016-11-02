@@ -25,7 +25,7 @@
 </br>
 
 <div class="container main" style="width: 500px;">
-    <form name="sysConfig" role="form" action="/file" method="post" onsubmit="return validateForm()">
+    <form name="sysConfig" role="form" action="/file" method="post" onsubmit="return validateForm(this)">
         <div class="form-group">
             <label for="faultNumber">容错数</label>
             <input type="number" class="form-control" id="faultNumber" name="faultNumber"
@@ -42,30 +42,7 @@
         <input type="submit" class="btn btn-default center-block" id="submitBtn" value="submit">
     </form>
 </div>
-<script>
-    (function(){
-        function validateForm() {
-            var $submitBtn = $('#submitBtn');
-            var $faultNumBox = $('#faultNumber');
-            var $rowNumBox = $('#rowNumber');
-            $submitBtn.click(function () {
-                var faultNum = $faultNumBox.text();
-                var rowNum = $rowNumBox.text();
-                if (faultNum >= 2 && rowNum >= 2) {
-                    if (faultNum > 30 || rowNum > 30) {
-                        window.alert("容错数和行数不应大于30");
-                        return false;
-                    }
-                } else {
-                    window.alert("容错数和行数应大于1");
-                    return false;
-                }
-            })
-        }
-    })
-</script>
-<!-- todo : 验证表单后再提交 -->
-<!--<script src="../js/index.js"></script>-->
+<script src="../js/index.js"></script>
 
 </body>
 </html>

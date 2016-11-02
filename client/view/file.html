@@ -9,8 +9,41 @@
     <!-- Bootstrap -->
     <script src="//cdn.bootcss.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
     <link href="//cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- File Input -->
+    <link rel="stylesheet" href="../css/fileinput.min.css">
+    <script src="../js/fileinput.min.js"></script>
+    <script src="../js/zh.js"></script>
+
 </head>
 <body>
+
+<div class="modal fade" id="modalDialog" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span
+                        class="sr-only">Close</span></button>
+                <h4 class="modal-title" id="myModalLabel">上传文件</h4>
+            </div>
+            <div class="modal-body">
+
+                <form class="form-inline" role="form">
+                    <div class="form-group">
+                        <div class="input-group">
+                            <input type="file" class="file" multiple id="inputTag">
+                        </div>
+                    </div>
+                </form>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary">上传</button>
+            </div>
+        </div>
+    </div>
+</div>
 <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
     <div class="container-fluid">
         <div class="navbar-header">
@@ -26,12 +59,18 @@
 </nav>
 </br>
 </br>
-
+</br>
+</br>
 <div class="container-fluid">
     <div class="row">
         <div class="col-sm-10 col-sm-offset-1 col-md-10 col-md-offset-1 main">
-            <h2 class="sub-header">文件列表</h2>
-            <div class="table-responsive">
+            <div class="container row">
+                <h1 class="sub-header col-md-9 col-lg-10">文件列表</h1>
+                <button class="btn btn-success col-md-1 col-lg-1" data-toggle="modal" data-target="#modalDialog"
+                        style="margin-top:30px">添加文件
+                </button>
+            </div>
+            <div class="table-responsive row">
                 <table class="table table-striped">
                     <thead>
                     <tr>
@@ -43,70 +82,30 @@
                     </thead>
                     <tbody>
 
-                    {{range .File.AllFiles}}
+                    {{range .}}
                     <tr>
-                        {{with .}}
-                        <td>{ {.FileFullName}}</td>
-                        <td>{ {.Size}}</td>
+                        <td>{{.FileFullName}}</td>
+                        <td>{{.Size}}</td>
                         <td>
-                            <button type="button" class="btn btn-info"><a href="/download?fileName={{.FileFullName}}">下载</a>
-                            </button>
+                            <a href="/download?fileName={{.FileFullName}}">
+                                <button type="button" class="btn btn-info">下载
+                                </button>
+                            </a>
                         </td>
                         <td>
-                            <button type="button" class="btn btn-danger"><a href="/rmfile?fileName={{.FileFullName}}">删除</a>
-                            </button>
+                            <a href="/rmfile?fileName={{.FileFullName}}">
+                                <button type="button" class="btn btn-danger">删除
+                                </button>
+                            </a>
                         </td>
                     </tr>
                     {{end}}
-                    {{end}}
-
-                    <tr>
-                        <td>amet</td>
-                        <td>consectetur</td>
-                        <td>adipiscing</td>
-                        <td>elit</td>
-                    </tr>
-                    <tr>
-                        <td>Integer</td>
-                        <td>nec</td>
-                        <td>odio</td>
-                        <td>Praesent</td>
-                    </tr>
-                    <tr>
-                        <td>libero</td>
-                        <td>Sed</td>
-                        <td>cursus</td>
-                        <td>ante</td>
-                    </tr>
-                    <tr>
-                        <td>dapibus</td>
-                        <td>diam</td>
-                        <td>Sed</td>
-                        <td>nisi</td>
-                    </tr>
-                    <tr>
-                        <td>Nulla</td>
-                        <td>quis</td>
-                        <td>sem</td>
-                        <td>at</td>
-                    </tr>
-                    <tr>
-                        <td>nibh</td>
-                        <td>elementum</td>
-                        <td>imperdiet</td>
-                        <td>Duis</td>
-                    </tr>
-                    <tr>
-                        <td>sagittis</td>
-                        <td>ipsum</td>
-                        <td>Praesent</td>
-                        <td>mauris</td>
-                    </tr>
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
 </div>
+<script src="../js/file.js"></script>
 </body>
 </html>
