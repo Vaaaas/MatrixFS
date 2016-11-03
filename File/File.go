@@ -310,4 +310,4 @@ func (file File)initOneRddtFile(startFolderNum, k, rddtNum int) error {
 	return nil
 }
 
-//todo : 删除所有临时文件
+//todo : Delete all temp files when finished the whole upload operation

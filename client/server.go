@@ -34,9 +34,9 @@ func main() {
 	http.HandleFunc("/file", filePageHandler)
 	http.HandleFunc("/node", nodePageHandler)
 
-	http.HandleFunc("/upload",uploadHandler)
-	http.HandleFunc("/download",downloadHandler)
-	http.HandleFunc("/delete",deleteHandler)
+	http.HandleFunc("/upload", uploadHandler)
+	http.HandleFunc("/download", downloadHandler)
+	http.HandleFunc("/delete", deleteHandler)
 
 	http.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.Dir("./js/"))))
 	http.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("./css/"))))
@@ -51,6 +51,7 @@ func sysConfigured() bool {
 }
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {
+	//todo : Also need to judge if the Nodes are configured, if not redirect to Node manage page
 	if r.URL.Path == "/" {
 		if !sysConfigured() {
 			fmt.Println("not configured, redirect to index.html")
@@ -60,11 +61,17 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/file", http.StatusFound)
 		}
 	} else {
-		t, err := template.ParseFiles("view/404.html")
-		if (err != nil) {
-			log.Println(err)
+		if r.URL.Path == "/favicon.ico" {
+			fmt.Println("[/favicon.ico] " + r.URL.Path)
+			http.ServeFile(w, r, "favicon.ico")
+		} else {
+			fmt.Println("[/] " + r.URL.Path)
+			t, err := template.ParseFiles("view/404.html")
+			if (err != nil) {
+				log.Println(err)
+			}
+			t.Execute(w, nil)
 		}
-		t.Execute(w, nil)
 	}
 }
 
@@ -97,6 +104,7 @@ func filePageHandler(w http.ResponseWriter, r *http.Request) {
 			if (err != nil) {
 				glog.Error("rowNumber参数转换为int失败")
 			}
+			//todo : After init System config, still need to confirm the nodes before upload file
 			SysConfig.InitConfig(faultNum, rowNum)
 			testFileHandle("/Users/vaaaas/Desktop/READING/PDF.pdf")
 			testFileHandle("/Users/vaaaas/Desktop/READING/MP3.mp3")
@@ -117,15 +125,16 @@ func nodePageHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
-
+	fmt.Println("[UPLOAD] " + r.URL.Path)
+	fmt.Println(r.Form["uploadInput"][0])
 }
 
 func downloadHandler(w http.ResponseWriter, r *http.Request) {
-
+	fmt.Println("[DOWNLOAD] " + r.URL.Path)
 }
 
 func deleteHandler(w http.ResponseWriter, r *http.Request) {
-
+	fmt.Println("[DELETE] " + r.URL.Path)
 }
 
 func testFileHandle(source string) {
