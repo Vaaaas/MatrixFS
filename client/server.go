@@ -10,6 +10,8 @@ import (
 	"log"
 	"html/template"
 	"strconv"
+	"os"
+	"io"
 )
 
 func main() {
@@ -106,8 +108,6 @@ func filePageHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			//todo : After init System config, still need to confirm the nodes before upload file
 			SysConfig.InitConfig(faultNum, rowNum)
-			testFileHandle("/Users/vaaaas/Desktop/READING/PDF.pdf")
-			testFileHandle("/Users/vaaaas/Desktop/READING/MP3.mp3")
 		}
 	}
 
@@ -125,8 +125,34 @@ func nodePageHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("[UPLOAD] " + r.URL.Path)
-	fmt.Println(r.Form["uploadInput"][0])
+	fmt.Println("method: ", r.Method)
+	if r.Method == "GET" {
+		fmt.Println("[/UPLOAD] " + r.URL.Path)
+		t, err := template.ParseFiles("view/404.html")
+		if (err != nil) {
+			log.Println(err)
+		}
+		t.Execute(w, nil)
+	} else {
+		r.ParseMultipartForm(32 << 20)
+		file, handler, err := r.FormFile("uploadInput")
+		if err != nil {
+			glog.Error(err)
+			panic(err)
+		}
+		defer file.Close()
+		//fmt.Fprintf(w, "%v", handler.Header)
+		f, err := os.OpenFile("temp/" + handler.Filename, os.O_WRONLY | os.O_CREATE, 0666)
+		if err != nil {
+			glog.Error(err)
+			panic(err)
+		}
+		defer f.Close()
+		io.Copy(f, file)
+		fileHandle("temp/" + handler.Filename)
+		glog.Infof("File upload & init finished, redirect to file page : %s", handler.Filename)
+		http.Redirect(w, r, "/file", http.StatusFound)
+	}
 }
 
 func downloadHandler(w http.ResponseWriter, r *http.Request) {
@@ -137,14 +163,13 @@ func deleteHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("[DELETE] " + r.URL.Path)
 }
 
-func testFileHandle(source string) {
+func fileHandle(source string) {
 	//SysConfig & File pkg test
-	fmt.Println("Start test FileHandler")
+	fmt.Println("Start FileHandler")
 	var file01 File.File
 	file01.Init(source)
 	name, ext := file01.SliceFileName()
-	fmt.Println(name + " , " + ext)
+	glog.Infof("File %s init finished", name + ext)
 	file01.InitDataFiles()
 	file01.InitRddtFiles()
-	file01.GetFile("/Users/vaaaas/Desktop/WRITING/")
 }

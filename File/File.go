@@ -50,36 +50,34 @@ func (file *File) Init(source string) error {
 
 		fmt.Printf("All Files: %+v  ,len: %d\n", AllFiles[len(AllFiles) - 1], len(AllFiles))
 
-		//将文件复制到temp目录
-		file.cpyFile(source)
 		return nil
 	}
 }
 
-func (file File) cpyFile(source string) (error) {
-	in, err := os.Open(source)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	out, err := os.Create("./temp/" + file.FileFullName)
-	if err != nil {
-		glog.Error(err)
-		panic(err)
-	}
-	defer func() {
-		cerr := out.Close()
-		if err == nil {
-			err = cerr
-		}
-	}()
-	if _, err = io.Copy(out, in); err != nil {
-		glog.Error(err)
-		panic(err)
-	}
-	err = out.Sync()
-	return nil
-}
+//func (file File) cpyFile(source string) (error) {
+//	in, err := os.Open(source)
+//	if err != nil {
+//		return err
+//	}
+//	defer in.Close()
+//	out, err := os.Create("./temp/" + file.FileFullName)
+//	if err != nil {
+//		glog.Error(err)
+//		panic(err)
+//	}
+//	defer func() {
+//		cerr := out.Close()
+//		if err == nil {
+//			err = cerr
+//		}
+//	}()
+//	if _, err = io.Copy(out, in); err != nil {
+//		glog.Error(err)
+//		panic(err)
+//	}
+//	err = out.Sync()
+//	return nil
+//}
 
 func (file File) SliceFileName() (string, string) {
 	if file.FileFullName != "" {
