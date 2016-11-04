@@ -15,11 +15,6 @@ import (
 )
 
 func main() {
-	var fault, row int
-
-	//Init command line args
-	flag.IntVar(&fault, "fault", 2, "系统容错数量")
-	flag.IntVar(&row, "row", 2, "文件阵列行数")
 	//when debug, log_dir="./log"
 	flag.Parse()
 	//Trigger on exit, write log into files
@@ -157,6 +152,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("[DOWNLOAD] " + r.URL.Path)
+
 }
 
 func deleteHandler(w http.ResponseWriter, r *http.Request) {
