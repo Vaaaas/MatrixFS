@@ -152,7 +152,20 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("[DOWNLOAD] " + r.URL.Path)
+	r.ParseForm()
+	fmt.Println("method: ", r.Method)
 
+	if !sysConfigured() {
+		fmt.Println("not configured, redirect to index.html")
+		http.Redirect(w, r, "/index", http.StatusFound)
+	}else{
+		fmt.Println(r.Form["fileName"][0])
+		fileName := r.Form["fileName"][0]
+		targetFile := findFileInAll(fileName)
+		fmt.Println(targetFile.FileFullName)
+		targetFile.GetFile("/temp/")
+		fmt.Println(targetFile.FileFullName + " Finished")
+	}
 }
 
 func deleteHandler(w http.ResponseWriter, r *http.Request) {
@@ -168,4 +181,13 @@ func fileHandle(source string) {
 	glog.Infof("File %s init finished", name + ext)
 	file01.InitDataFiles()
 	file01.InitRddtFiles()
+}
+
+func findFileInAll(name string) (file File.File) {
+	for _, tempFile := range File.AllFiles {
+		if tempFile.FileFullName == name {
+			return tempFile
+		}
+	}
+	return
 }

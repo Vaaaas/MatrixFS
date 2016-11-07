@@ -307,5 +307,4 @@ func (file File)initOneRddtFile(startFolderNum, k, rddtNum int) error {
 	}
 	return nil
 }
-
 //todo : Delete all temp files when finished the whole upload operation
