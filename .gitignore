@@ -48,6 +48,7 @@ File/File.iml
 
 SysConfig/SysConfig.iml
 
+.vscode/launch.json
+
 Node/Node.iml
-
-
+*.iml

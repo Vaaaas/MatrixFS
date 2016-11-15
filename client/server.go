@@ -5,9 +5,7 @@ import (
 	"flag"
 	"Vaaaas/MatrixFS/SysConfig"
 	"Vaaaas/MatrixFS/File"
-	"fmt"
 	"net/http"
-	"log"
 	"html/template"
 	"strconv"
 	"os"
@@ -39,7 +37,7 @@ func main() {
 	http.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("./css/"))))
 
 	if err := http.ListenAndServe(":8080", nil); err != nil {
-		log.Panic(err)
+		glog.Errorln(err)
 	}
 }
 
@@ -51,21 +49,21 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 	//todo : Also need to judge if the Nodes are configured, if not redirect to Node manage page
 	if r.URL.Path == "/" {
 		if !sysConfigured() {
-			fmt.Println("not configured, redirect to index.html")
+			glog.Infoln("URL: " + r.URL.Path + "/tnot configured, redirect to index.html")
 			http.Redirect(w, r, "/index", http.StatusFound)
 		} else {
-			fmt.Println("configured, redirect to file.html")
+			glog.Infoln("URL: " + r.URL.Path + "/tconfigured, redirect to file.html")
 			http.Redirect(w, r, "/file", http.StatusFound)
 		}
 	} else {
 		if r.URL.Path == "/favicon.ico" {
-			fmt.Println("[/favicon.ico] " + r.URL.Path)
+			glog.Infoln("[/favicon.ico] " + r.URL.Path)
 			http.ServeFile(w, r, "favicon.ico")
 		} else {
-			fmt.Println("[/] " + r.URL.Path)
+			glog.Infoln("[/] " + r.URL.Path)
 			t, err := template.ParseFiles("view/404.html")
 			if (err != nil) {
-				log.Println(err)
+				glog.Errorln(err)
 			}
 			t.Execute(w, nil)
 		}
@@ -75,24 +73,24 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 func indexPageHandler(w http.ResponseWriter, r *http.Request) {
 	t, err := template.ParseFiles("view/index.html")
 	if (err != nil) {
-		log.Println(err)
+		glog.Errorln(err)
 	}
 	t.Execute(w, nil)
 }
 
 func filePageHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	fmt.Println("method: ", r.Method)
+	glog.Infoln("[File Page] method: ", r.Method)
 	if r.Method == "GET" {
 		if !sysConfigured() {
-			fmt.Println("not configured, redirect to index.html")
+			glog.Infoln("URL: " + r.URL.Path + "/tnot configured, redirect to index.html")
 			http.Redirect(w, r, "/index", http.StatusFound)
 			return
 		}
 	} else {
 		if !sysConfigured() {
-			fmt.Println(r.Form["faultNumber"][0])
-			fmt.Println(r.Form["rowNumber"][0])
+			glog.Infoln("[Configure-Fault]\t" + r.Form["faultNumber"][0])
+			glog.Infoln("[Configure-Row]\t" + r.Form["rowNumber"][0])
 			faultNum, err := strconv.Atoi(r.Form["faultNumber"][0])
 			if (err != nil) {
 				glog.Error("faultNumber参数转换为int失败")
@@ -106,11 +104,10 @@ func filePageHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	fmt.Println(len(File.AllFiles))
-
+	glog.Infof("Length of AllFiles : %d", len(File.AllFiles))
 	t, err := template.ParseFiles("view/file.html")
 	if (err != nil) {
-		fmt.Println(err)
+		glog.Errorln(err)
 	}
 	t.Execute(w, File.AllFiles)
 }
@@ -120,12 +117,12 @@ func nodePageHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("method: ", r.Method)
+	glog.Infoln("[UPLOAD] method: ", r.Method)
 	if r.Method == "GET" {
-		fmt.Println("[/UPLOAD] " + r.URL.Path)
+		glog.Infoln("[/UPLOAD] " + r.URL.Path)
 		t, err := template.ParseFiles("view/404.html")
 		if (err != nil) {
-			log.Println(err)
+			glog.Errorln(err)
 		}
 		t.Execute(w, nil)
 	} else {
@@ -137,6 +134,11 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		defer file.Close()
 		//fmt.Fprintf(w, "%v", handler.Header)
+		if handler.Filename == "" {
+			http.Redirect(w, r, "/file", http.StatusFound)
+			glog.Warningln("empty file")
+			return
+		}
 		f, err := os.OpenFile("temp/" + handler.Filename, os.O_WRONLY | os.O_CREATE, 0666)
 		if err != nil {
 			glog.Error(err)
@@ -151,30 +153,44 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func downloadHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("[DOWNLOAD] " + r.URL.Path)
+	glog.Infoln("[DOWNLOAD] " + r.URL.Path)
 	r.ParseForm()
-	fmt.Println("method: ", r.Method)
+	glog.Infoln("[DOWNLOAD] method: ", r.Method)
 
 	if !sysConfigured() {
-		fmt.Println("not configured, redirect to index.html")
+		glog.Infoln("URL: " + r.URL.Path + "/tnot configured, redirect to index.html")
 		http.Redirect(w, r, "/index", http.StatusFound)
-	}else{
-		fmt.Println(r.Form["fileName"][0])
+	} else {
+		glog.Infoln("[Form-File_Name]" + r.Form["fileName"][0])
 		fileName := r.Form["fileName"][0]
 		targetFile := findFileInAll(fileName)
-		fmt.Println(targetFile.FileFullName)
-		targetFile.GetFile("/temp/")
-		fmt.Println(targetFile.FileFullName + " Finished")
+		targetFile.GetFile("temp/")
+		http.ServeFile(w, r, "temp/" + fileName)
+		glog.Infoln("[Download] " + targetFile.FileFullName + " Finished")
 	}
 }
 
 func deleteHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("[DELETE] " + r.URL.Path)
+	glog.Infoln("[DELETE] " + r.URL.Path)
+	r.ParseForm()
+	glog.Infoln("[DELETE] method: ", r.Method)
+
+	if !sysConfigured() {
+		glog.Infoln("URL: " + r.URL.Path + "/tnot configured, redirect to index.html")
+		http.Redirect(w, r, "/index", http.StatusFound)
+	} else {
+		glog.Infoln("[Form-File_Name]" + r.Form["fileName"][0])
+		fileName := r.Form["fileName"][0]
+		targetFile := findFileInAll(fileName)
+		targetFile.DeleteAllTempFiles()
+		glog.Infoln("[Download] " + targetFile.FileFullName + " Finished")
+		http.Redirect(w, r, "/file", http.StatusFound)
+	}
+
 }
 
 func fileHandle(source string) {
-	//SysConfig & File pkg test
-	fmt.Println("Start FileHandler")
+	glog.Infoln("Start FileHandler")
 	var file01 File.File
 	file01.Init(source)
 	name, ext := file01.SliceFileName()

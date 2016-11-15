@@ -9,10 +9,18 @@ import (
 	"io"
 	"strconv"
 	"math"
-	"fmt"
 )
 
 var AllFiles = []File{}
+
+func SliceIndex(limit int, predicate func(i int) bool) int {
+	for i := 0; i < limit; i++ {
+		if predicate(i) {
+			return i
+		}
+	}
+	return -1
+}
 
 //使用时需要通过File(包名).File(结构体名)来访问
 type File struct {
@@ -48,7 +56,7 @@ func (file *File) Init(source string) error {
 		//todo : 在内存中的具体行为待观察
 		AllFiles = append(AllFiles, *file)
 
-		fmt.Printf("All Files: %+v  ,len: %d\n", AllFiles[len(AllFiles) - 1], len(AllFiles))
+		glog.Infof("All Files: %+v  ,len: %d", AllFiles[len(AllFiles) - 1], len(AllFiles))
 
 		return nil
 	}
@@ -175,6 +183,7 @@ func (file File) initOneDataFile(col int, row int, sourceFile *os.File) error {
 }
 
 func (file File) GetFile(targetFolder string) error {
+	glog.Infof("[Get File] %s", targetFolder + file.FileFullName)
 	target, err := os.Create(targetFolder + file.FileFullName)
 	var realSliceNum int64
 	if file.Size % file.SliceSize != 0 {
@@ -308,3 +317,77 @@ func (file File)initOneRddtFile(startFolderNum, k, rddtNum int) error {
 	return nil
 }
 //todo : Delete all temp files when finished the whole upload operation
+
+func (file File)DeleteAllTempFiles() error {
+	file.deleteDataFiles()
+	file.deleteRddtFiles()
+	if _, err := os.Stat("temp/" + file.FileFullName); os.IsNotExist(err) {
+		glog.Warningf("[File to Delete NOT EXIST] temp/" + file.FileFullName)
+	} else {
+		err := os.Remove("temp/" + file.FileFullName)
+		if err != nil {
+			glog.Errorln(err)
+		} else {
+			glog.Infof("[File to Delete] temp/" + file.FileFullName)
+		}
+	}
+	index := SliceIndex(len(AllFiles), func(i int) bool {
+		return AllFiles[i].FileFullName == file.FileFullName
+	})
+	AllFiles = append(AllFiles[:index], AllFiles[index + 1:]...)
+	return nil
+}
+
+func (file File)deleteDataFiles() error {
+	for i := 0; i < SysConfig.SysConfig.DataNum; i++ {
+		for j := 0; j < SysConfig.SysConfig.SliceNum / SysConfig.SysConfig.DataNum; j++ {
+			if _, err := os.Stat("temp/DATA." + strconv.Itoa(i) + "/" + file.FileFullName + "." + strconv.Itoa(i) + strconv.Itoa(j)); os.IsNotExist(err) {
+				glog.Warningf("[File to Delete NOT EXIST] temp/DATA.%d/%s.%d%d ", i, file.FileFullName, i, j)
+			} else {
+				err := os.Remove("temp/DATA." + strconv.Itoa(i) + "/" + file.FileFullName + "." + strconv.Itoa(i) + strconv.Itoa(j))
+				if err != nil {
+					glog.Errorln(err)
+				} else {
+					glog.Infof("[File to Delete] temp/DATA.%d/%s.%d%d ", i, file.FileFullName, i, j)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (file File)deleteRddtFiles() error {
+	nodeCounter := 0
+	fileCounter := 0
+	rddtFileCounter := 0
+	for i := 0; i < SysConfig.SysConfig.FaultNum; i++ {
+		k := (int)((i + 2) / 2 * (int)(math.Pow(-1, (float64)(i + 2))))
+		for fileCounter < SysConfig.SysConfig.DataNum {
+			if _, err := os.Stat("temp/RDDT." + strconv.Itoa(nodeCounter) + "/" + file.FileFullName + "." + strconv.Itoa(k) + strconv.Itoa(fileCounter)); os.IsNotExist(err) {
+				glog.Warningf("[File to Delete NOT EXIST] temp/RDDT.%d/%s.%d%d ", nodeCounter, file.FileFullName, k, fileCounter)
+			} else {
+				err := os.Remove("temp/RDDT." + strconv.Itoa(nodeCounter) + "/" + file.FileFullName + "." + strconv.Itoa(k) + strconv.Itoa(fileCounter))
+				if err != nil {
+					glog.Errorln(err)
+				} else {
+					glog.Infof("[File to Delete] temp/RDTT.%d/%s.%d%d ", nodeCounter, file.FileFullName, k, fileCounter)
+				}
+			}
+
+			fileCounter++;
+			rddtFileCounter++;
+			if (rddtFileCounter % (SysConfig.SysConfig.SliceNum / SysConfig.SysConfig.DataNum) == 0) {
+				nodeCounter++;
+				rddtFileCounter = 0;
+			}
+			if (fileCounter != SysConfig.SysConfig.DataNum) {
+				continue;
+			}
+			fileCounter = 0;
+			break;
+		}
+	}
+
+	return nil
+}
