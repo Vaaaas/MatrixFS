@@ -1,4 +1,4 @@
-package Node
+package NodeStruct
 
 var AllNodes []Node
 var LostNodes []int
@@ -13,8 +13,4 @@ type Node struct {
 	//1 -> 计算中
 	//2 -> 丢失
 	Status  int8
-}
-
-func InitNodes() {
-
 }

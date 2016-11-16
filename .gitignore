@@ -37,18 +37,13 @@ logs
 #IDEA ide files
 .idea
 
-client/Server
+matrix/log/
 
-client/log/
-
-client/temp/
-
-
-File/File.iml
-
-SysConfig/SysConfig.iml
+matrix/temp/
 
 .vscode/launch.json
 
-Node/Node.iml
 *.iml
+/matrix/Server
+/node/node
+/node/log/
