@@ -3,7 +3,7 @@ package File
 import (
 	"strings"
 	"os"
-	"Vaaaas/MatrixFS/SysConfig"
+	"github.com/Vaaaas/MatrixFS/SysConfig"
 	"github.com/golang/glog"
 	"errors"
 	"io"
@@ -53,7 +53,6 @@ func (file *File) Init(source string) error {
 			file.FillSize = 0
 		}
 		glog.Infof("%+v ", file)
-		//todo : 在内存中的具体行为待观察
 		AllFiles = append(AllFiles, *file)
 
 		glog.Infof("All Files: %+v  ,len: %d", AllFiles[len(AllFiles) - 1], len(AllFiles))

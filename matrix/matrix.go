@@ -3,8 +3,8 @@ package main
 import (
 	"github.com/golang/glog"
 	"flag"
-	"Vaaaas/MatrixFS/SysConfig"
-	"Vaaaas/MatrixFS/File"
+	"github.com/Vaaaas/MatrixFS/SysConfig"
+	"github.com/Vaaaas/MatrixFS/File"
 	"net/http"
 	"html/template"
 	"strconv"
@@ -35,7 +35,7 @@ func main() {
 	http.HandleFunc("/", rootHandler)
 	http.HandleFunc("/index", indexPageHandler)
 	http.HandleFunc("/file", filePageHandler)
-	http.HandleFunc("/node", nodePageHandler)
+	http.HandleFunc("/node", nodeHandler)
 
 	http.HandleFunc("/upload", uploadHandler)
 	http.HandleFunc("/download", downloadHandler)
