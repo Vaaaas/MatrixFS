@@ -46,7 +46,7 @@ func main() {
 	http.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.Dir("./js/"))))
 	http.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("./css/"))))
 
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	if err := http.ListenAndServe(":"+os.Getenv("HTTP_PLATFORM_PORT"), nil); err != nil {
 		glog.Errorln(err)
 	}
 }
@@ -153,7 +153,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		defer f.Close()
 		io.Copy(f, file)
 		fileHandle("temp/" + handler.Filename)
-		glog.Infof("File upload & init finished, redirect to file page : %s", handler.Filename)
+		glog.Infof("File upload & init finished, redirect to file page : %s, Content-Type: %s", handler.Filename, r.Header.Get("Content-Type"))
 		http.Redirect(w, r, "/file", http.StatusFound)
 	}
 }
@@ -171,8 +171,10 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 		fileName := r.Form["fileName"][0]
 		targetFile := findFileInAll(fileName)
 		targetFile.GetFile("temp/")
+		w.Header().Set("Content-Disposition", "attachment; filename=" + fileName)
+		w.Header().Set("Content-Type", r.Header.Get("Content-Type"))
 		http.ServeFile(w, r, "temp/" + fileName)
-		glog.Infoln("[Download] " + targetFile.FileFullName + " Finished")
+		glog.Infoln("[Download] " + targetFile.FileFullName + " Finished, Content-Type: " + r.Header.Get("Content-Type"))
 	}
 }
 

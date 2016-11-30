@@ -19,7 +19,6 @@ _cgo_export.*
 
 _testmain.go
 
-*.exe
 *.test
 *.prof
 
@@ -45,5 +44,10 @@ matrix/temp/
 
 *.iml
 /matrix/Server
+/matrix/matrix
+/matrix/debug
 /node/node
 /node/log/
+
+*.exe
+
