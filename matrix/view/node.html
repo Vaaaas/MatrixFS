@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Node Manage</title>
+    <!-- jQuery -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+
+    <!-- Bootstrap -->
+    <script src="//cdn.bootcss.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <link href="//cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+    <div class="container-fluid">
+        <div class="navbar-header">
+            <a class="navbar-brand" href="#">MatrixFS</a>
+        </div>
+        <div id="navbar" class="navbar-collapse collapse">
+            <ul class="nav navbar-nav navbar-right">
+                <li><a href="./file">文件管理</a></li>
+                <li><a href="#">帮助</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+</br>
+</br>
+</br>
+</br>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-sm-10 col-sm-offset-1 col-md-10 col-md-offset-1 main">
+            <div class="container row">
+                <h1 class="sub-header col-md-9 col-lg-10">节点列表</h1>
+            </div>
+            <div class="table-responsive row">
+                <table class="table table-striped">
+                    <thead>
+                    <tr>
+                        <th>节点ID</th>
+                        <th>节点IP</th>
+                        <th>剩余空间</th>
+                        <th>节点状态</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+
+                    {{range .}}
+                    <tr>
+                        <td>{{.ID}}</td>
+                        <td>{{.Address}}</td>
+                        <td>{{.Volume}} GB</td>
+                        <td>{{if .Status}} 运行中 {{else}} 丢失 {{end}}</td>
+                        <!--<td>-->
+                            <!--<a href="/delete?fileName={{.FileFullName}}">-->
+                                <!--<button type="button" class="btn btn-danger">删除-->
+                                <!--</button>-->
+                            <!--</a>-->
+                        <!--</td>-->
+                    </tr>
+                    {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="../js/file.js"></script>
+</body>
+</html>

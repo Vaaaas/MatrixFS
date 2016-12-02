@@ -10,6 +10,9 @@ import (
 	"strconv"
 	"os"
 	"io"
+	"encoding/json"
+	"fmt"
+	"github.com/Vaaaas/MatrixFS/NodeStruct"
 )
 
 func main() {
@@ -40,13 +43,12 @@ func main() {
 	http.HandleFunc("/upload", uploadHandler)
 	http.HandleFunc("/download", downloadHandler)
 	http.HandleFunc("/delete", deleteHandler)
-
-	http.HandleFunc("/Node", nodeHandler)
+	http.HandleFunc("/greet", greetHandler)
 
 	http.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.Dir("./js/"))))
 	http.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("./css/"))))
 
-	if err := http.ListenAndServe(":"+os.Getenv("HTTP_PLATFORM_PORT"), nil); err != nil {
+	if err := http.ListenAndServe(":8080", nil); err != nil {
 		glog.Errorln(err)
 	}
 }
@@ -55,15 +57,24 @@ func sysConfigured() bool {
 	return SysConfig.SysConfig.FaultNum != 0 && SysConfig.SysConfig.RowNum != 0
 }
 
+func nodeConfigured() bool {
+	return len(NodeStruct.AllNodes) != 0
+}
+
 func rootHandler(w http.ResponseWriter, r *http.Request) {
-	//todo : Also need to judge if the Nodes are configured, if not redirect to Node manage page
 	if r.URL.Path == "/" {
+
 		if !sysConfigured() {
-			glog.Infoln("URL: " + r.URL.Path + "/tnot configured, redirect to index.html")
+			glog.Infoln("URL: " + r.URL.Path + "/t not configured, redirect to index.html")
 			http.Redirect(w, r, "/index", http.StatusFound)
 		} else {
-			glog.Infoln("URL: " + r.URL.Path + "/tconfigured, redirect to file.html")
-			http.Redirect(w, r, "/file", http.StatusFound)
+			if !nodeConfigured() {
+				glog.Infoln("URL: " + r.URL.Path + "/t Node not configured, redirect to nnode.html")
+				http.Redirect(w, r, "/node", http.StatusFound)
+			} else {
+				glog.Infoln("URL: " + r.URL.Path + "/tconfigured, redirect to file.html")
+				http.Redirect(w, r, "/file", http.StatusFound)
+			}
 		}
 	} else {
 		if r.URL.Path == "/favicon.ico" {
@@ -81,14 +92,24 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func indexPageHandler(w http.ResponseWriter, r *http.Request) {
-	t, err := template.ParseFiles("view/index.html")
-	if (err != nil) {
-		glog.Errorln(err)
+	if sysConfigured() {
+		if !nodeConfigured() {
+			glog.Infoln("URL: " + r.URL.Path + "/t Node not configured, redirect to nnode.html")
+			http.Redirect(w, r, "/node", http.StatusFound)
+		} else {
+			glog.Infoln("URL: " + r.URL.Path + "/tconfigured, redirect to file.html")
+			http.Redirect(w, r, "/file", http.StatusFound)
+		}
+	} else {
+		t, err := template.ParseFiles("view/index.html")
+		if (err != nil) {
+			glog.Errorln(err)
+		}
+		t.Execute(w, nil)
 	}
-	t.Execute(w, nil)
 }
 
-func filePageHandler(w http.ResponseWriter, r *http.Request) {
+func nodeHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	glog.Infoln("[File Page] method: ", r.Method)
 	if r.Method == "GET" {
@@ -114,12 +135,29 @@ func filePageHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	glog.Infof("Length of AllFiles : %d", len(File.AllFiles))
-	t, err := template.ParseFiles("view/file.html")
+	glog.Infof("Length of AllNodes : %d", len(NodeStruct.AllNodes))
+	t, err := template.ParseFiles("view/node.html")
 	if (err != nil) {
 		glog.Errorln(err)
 	}
-	t.Execute(w, File.AllFiles)
+	t.Execute(w, NodeStruct.AllNodes)
+}
+
+func filePageHandler(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	glog.Infoln("[File Page] method: ", r.Method)
+	if !sysConfigured() {
+		glog.Infoln("URL: " + r.URL.Path + "/tnot configured, redirect to index.html")
+		http.Redirect(w, r, "/index", http.StatusFound)
+		return
+	} else {
+		glog.Infof("Length of AllFiles : %d", len(File.AllFiles))
+		t, err := template.ParseFiles("view/file.html")
+		if (err != nil) {
+			glog.Errorln(err)
+		}
+		t.Execute(w, File.AllFiles)
+	}
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
@@ -216,6 +254,19 @@ func findFileInAll(name string) (file File.File) {
 	return
 }
 
-func nodeHandler(w http.ResponseWriter, r *http.Request) {
+func greetHandler(w http.ResponseWriter, r *http.Request) {
+	var node NodeStruct.Node
+	if r.Body == nil {
+		http.Error(w, "Please send a request body", 400)
+		return
+	}
+	err := json.NewDecoder(r.Body).Decode(&node)
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	fmt.Println(node)
+	fmt.Printf("Hello %d", node.ID)
 
+	NodeStruct.AllNodes = append(NodeStruct.AllNodes, node)
 }
