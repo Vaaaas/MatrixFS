@@ -33,6 +33,7 @@ func main() {
 	if err != nil {
 		glog.Errorln(err)
 	}
+	NodeStruct.IDCounter=0
 
 	//Pages
 	http.HandleFunc("/", rootHandler)
@@ -65,14 +66,14 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/" {
 
 		if !sysConfigured() {
-			glog.Infoln("URL: " + r.URL.Path + "/t not configured, redirect to index.html")
+			glog.Infoln("URL: " + r.URL.Path + " not configured, redirect to index.html")
 			http.Redirect(w, r, "/index", http.StatusFound)
 		} else {
 			if !nodeConfigured() {
-				glog.Infoln("URL: " + r.URL.Path + "/t Node not configured, redirect to nnode.html")
+				glog.Infoln("URL: " + r.URL.Path + " Node not configured, redirect to nnode.html")
 				http.Redirect(w, r, "/node", http.StatusFound)
 			} else {
-				glog.Infoln("URL: " + r.URL.Path + "/tconfigured, redirect to file.html")
+				glog.Infoln("URL: " + r.URL.Path + "configured, redirect to file.html")
 				http.Redirect(w, r, "/file", http.StatusFound)
 			}
 		}
@@ -94,10 +95,10 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 func indexPageHandler(w http.ResponseWriter, r *http.Request) {
 	if sysConfigured() {
 		if !nodeConfigured() {
-			glog.Infoln("URL: " + r.URL.Path + "/t Node not configured, redirect to nnode.html")
+			glog.Infoln("URL: " + r.URL.Path + " Node not configured, redirect to nnode.html")
 			http.Redirect(w, r, "/node", http.StatusFound)
 		} else {
-			glog.Infoln("URL: " + r.URL.Path + "/tconfigured, redirect to file.html")
+			glog.Infoln("URL: " + r.URL.Path + " configured, redirect to file.html")
 			http.Redirect(w, r, "/file", http.StatusFound)
 		}
 	} else {
@@ -114,14 +115,14 @@ func nodeHandler(w http.ResponseWriter, r *http.Request) {
 	glog.Infoln("[File Page] method: ", r.Method)
 	if r.Method == "GET" {
 		if !sysConfigured() {
-			glog.Infoln("URL: " + r.URL.Path + "/tnot configured, redirect to index.html")
+			glog.Infoln("URL: " + r.URL.Path + "not configured, redirect to index.html")
 			http.Redirect(w, r, "/index", http.StatusFound)
 			return
 		}
 	} else {
 		if !sysConfigured() {
-			glog.Infoln("[Configure-Fault]\t" + r.Form["faultNumber"][0])
-			glog.Infoln("[Configure-Row]\t" + r.Form["rowNumber"][0])
+			glog.Infoln("[Configure-Fault]" + r.Form["faultNumber"][0])
+			glog.Infoln("[Configure-Row]" + r.Form["rowNumber"][0])
 			faultNum, err := strconv.Atoi(r.Form["faultNumber"][0])
 			if (err != nil) {
 				glog.Error("faultNumber参数转换为int失败")
@@ -136,6 +137,7 @@ func nodeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	glog.Infof("Length of AllNodes : %d", len(NodeStruct.AllNodes))
+	fmt.Println(NodeStruct.AllNodes)
 	t, err := template.ParseFiles("view/node.html")
 	if (err != nil) {
 		glog.Errorln(err)
@@ -147,7 +149,7 @@ func filePageHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	glog.Infoln("[File Page] method: ", r.Method)
 	if !sysConfigured() {
-		glog.Infoln("URL: " + r.URL.Path + "/tnot configured, redirect to index.html")
+		glog.Infoln("URL: " + r.URL.Path + "not configured, redirect to index.html")
 		http.Redirect(w, r, "/index", http.StatusFound)
 		return
 	} else {
@@ -202,7 +204,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	glog.Infoln("[DOWNLOAD] method: ", r.Method)
 
 	if !sysConfigured() {
-		glog.Infoln("URL: " + r.URL.Path + "/tnot configured, redirect to index.html")
+		glog.Infoln("URL: " + r.URL.Path + " not configured, redirect to index.html")
 		http.Redirect(w, r, "/index", http.StatusFound)
 	} else {
 		glog.Infoln("[Form-File_Name]" + r.Form["fileName"][0])
@@ -222,7 +224,7 @@ func deleteHandler(w http.ResponseWriter, r *http.Request) {
 	glog.Infoln("[DELETE] method: ", r.Method)
 
 	if !sysConfigured() {
-		glog.Infoln("URL: " + r.URL.Path + "/tnot configured, redirect to index.html")
+		glog.Infoln("URL: " + r.URL.Path + " not configured, redirect to index.html")
 		http.Redirect(w, r, "/index", http.StatusFound)
 	} else {
 		glog.Infoln("[Form-File_Name]" + r.Form["fileName"][0])
@@ -266,6 +268,8 @@ func greetHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Println(node)
+	NodeStruct.IDCounter++
+	node.ID=NodeStruct.IDCounter
 	fmt.Printf("Hello %d", node.ID)
 
 	NodeStruct.AllNodes = append(NodeStruct.AllNodes, node)

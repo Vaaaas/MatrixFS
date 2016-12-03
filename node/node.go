@@ -63,6 +63,8 @@ func main() {
 
 	connectMaster(MasterAdd)
 
+
+
 	if err := http.ListenAndServe(":" + strconv.Itoa(NodeAdd.Port), nil); err != nil {
 		glog.Errorln(err)
 		panic(err)
@@ -91,9 +93,8 @@ func connectMaster(master *net.TCPAddr) error {
 }
 
 func InitStruct(nodeInfo *NodeStruct.Node, address net.IP, port int, volume float64) error {
-	NodeStruct.IDCounter++
-	nodeInfo.ID = NodeStruct.IDCounter
 	nodeInfo.Address = address
+	nodeInfo.Port = port
 	nodeInfo.Volume = volume
 	nodeInfo.Status = true
 

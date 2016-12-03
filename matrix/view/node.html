@@ -40,6 +40,7 @@
                     <tr>
                         <th>节点ID</th>
                         <th>节点IP</th>
+                        <th>节点端口号</th>
                         <th>剩余空间</th>
                         <th>节点状态</th>
                     </tr>
@@ -50,13 +51,14 @@
                     <tr>
                         <td>{{.ID}}</td>
                         <td>{{.Address}}</td>
+                        <td>{{.Port}}</td>
                         <td>{{.Volume}} GB</td>
                         <td>{{if .Status}} 运行中 {{else}} 丢失 {{end}}</td>
                         <!--<td>-->
-                            <!--<a href="/delete?fileName={{.FileFullName}}">-->
-                                <!--<button type="button" class="btn btn-danger">删除-->
-                                <!--</button>-->
-                            <!--</a>-->
+                        <!--<a href="/delete?fileName={{.FileFullName}}">-->
+                        <!--<button type="button" class="btn btn-danger">删除-->
+                        <!--</button>-->
+                        <!--</a>-->
                         <!--</td>-->
                     </tr>
                     {{end}}

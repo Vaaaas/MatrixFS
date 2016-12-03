@@ -12,7 +12,7 @@ var IDCounter uint
 type Node struct {
 	ID      uint `json:"ID"`
 	Address net.IP `json:Address`
-	port    int `json:Port`
+	Port    int `json:Port`
 	Volume  float64 `json:Volume`
 	Status  bool `json:Status`
 
