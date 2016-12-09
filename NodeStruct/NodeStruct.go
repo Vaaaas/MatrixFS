@@ -3,10 +3,10 @@ package NodeStruct
 import (
 	"syscall"
 	"net"
+	"unsafe"
+	"github.com/golang/glog"
 )
 
-var AllNodes []Node
-var LostNodes []int
 var IDCounter uint
 
 type Node struct {
@@ -19,13 +19,6 @@ type Node struct {
 	//Status:
 	//false	 -> 丢失或
 	//true	 -> 正常
-	//
-}
-
-type DiskStatus struct {
-	All  float64 `json:"all"`
-	Used float64 `json:"used"`
-	Free float64 `json:"free"`
 }
 
 const (
@@ -36,19 +29,29 @@ const (
 )
 
 // disk usage of path/disk
-func diskUsage(path string) (disk DiskStatus) {
-	fs := syscall.Statfs_t{}
-	err := syscall.Statfs(path, &fs)
-	if err != nil {
-		return
-	}
-	disk.All = float64(fs.Blocks) * float64(fs.Bsize)
-	disk.Free = float64(fs.Bfree) * float64(fs.Bsize)
-	disk.Used = disk.All - disk.Free
-	return
-}
+func DiskUsage(path string) (free float64) {
+	//macOS:
+	//fs := syscall.Statfs_t{}
+	//err := syscall.Statfs(path, &fs)
+	//if err != nil {
+	//	return
+	//}
+	//free = float64(fs.Bfree) * float64(fs.Bsize)
+	//return free / float64(GB)
 
-func DiskFreeSize(path string) (float64) {
-	disk := diskUsage(path)
-	return disk.Free / float64(GB)
+	//Win:
+	h := syscall.MustLoadDLL("kernel32.dll")
+	c := h.MustFindProc("GetDiskFreeSpaceExW")
+	lpFreeBytesAvailable := int64(0)
+	lpTotalNumberOfBytes := int64(0)
+	lpTotalNumberOfFreeBytes := int64(0)
+	_, _, err := c.Call(uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr("path"))),
+		uintptr(unsafe.Pointer(&lpFreeBytesAvailable)),
+		uintptr(unsafe.Pointer(&lpTotalNumberOfBytes)),
+		uintptr(unsafe.Pointer(&lpTotalNumberOfFreeBytes)))
+	if err != nil {
+		glog.Error(err)
+		panic(err)
+	}
+	return (float64)(lpFreeBytesAvailable / 1024 / 1024.0)
 }

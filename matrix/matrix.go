@@ -2,18 +2,24 @@ package main
 
 import (
 	"github.com/golang/glog"
-	"flag"
+	"github.com/Vaaaas/MatrixFS/NodeStruct"
 	"github.com/Vaaaas/MatrixFS/SysConfig"
 	"github.com/Vaaaas/MatrixFS/File"
+	"flag"
 	"net/http"
-	"html/template"
-	"strconv"
 	"os"
-	"io"
 	"encoding/json"
 	"fmt"
-	"github.com/Vaaaas/MatrixFS/NodeStruct"
+	"strconv"
+	"html/template"
+	"io"
 )
+
+var AllNodes []NodeStruct.Node
+var DataNodes []uint
+var RddtNodes []uint
+var LostNodes []uint
+var EmptyNodes []uint
 
 func main() {
 	//when debug, log_dir="./log"
@@ -33,7 +39,7 @@ func main() {
 	if err != nil {
 		glog.Errorln(err)
 	}
-	NodeStruct.IDCounter=0
+	NodeStruct.IDCounter = 0
 
 	//Pages
 	http.HandleFunc("/", rootHandler)
@@ -54,22 +60,14 @@ func main() {
 	}
 }
 
-func sysConfigured() bool {
-	return SysConfig.SysConfig.FaultNum != 0 && SysConfig.SysConfig.RowNum != 0
-}
-
-func nodeConfigured() bool {
-	return len(NodeStruct.AllNodes) != 0
-}
-
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/" {
 
-		if !sysConfigured() {
+		if !SysConfig.SysConfigured() {
 			glog.Infoln("URL: " + r.URL.Path + " not configured, redirect to index.html")
 			http.Redirect(w, r, "/index", http.StatusFound)
 		} else {
-			if !nodeConfigured() {
+			if !NodeConfigured() {
 				glog.Infoln("URL: " + r.URL.Path + " Node not configured, redirect to nnode.html")
 				http.Redirect(w, r, "/node", http.StatusFound)
 			} else {
@@ -93,8 +91,8 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func indexPageHandler(w http.ResponseWriter, r *http.Request) {
-	if sysConfigured() {
-		if !nodeConfigured() {
+	if SysConfig.SysConfigured() {
+		if !NodeConfigured() {
 			glog.Infoln("URL: " + r.URL.Path + " Node not configured, redirect to nnode.html")
 			http.Redirect(w, r, "/node", http.StatusFound)
 		} else {
@@ -114,13 +112,13 @@ func nodeHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	glog.Infoln("[File Page] method: ", r.Method)
 	if r.Method == "GET" {
-		if !sysConfigured() {
+		if !SysConfig.SysConfigured() {
 			glog.Infoln("URL: " + r.URL.Path + "not configured, redirect to index.html")
 			http.Redirect(w, r, "/index", http.StatusFound)
 			return
 		}
 	} else {
-		if !sysConfigured() {
+		if !SysConfig.SysConfigured() {
 			glog.Infoln("[Configure-Fault]" + r.Form["faultNumber"][0])
 			glog.Infoln("[Configure-Row]" + r.Form["rowNumber"][0])
 			faultNum, err := strconv.Atoi(r.Form["faultNumber"][0])
@@ -136,19 +134,18 @@ func nodeHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	glog.Infof("Length of AllNodes : %d", len(NodeStruct.AllNodes))
-	fmt.Println(NodeStruct.AllNodes)
+	glog.Infof("Length of AllNodes : %d", len(AllNodes))
 	t, err := template.ParseFiles("view/node.html")
 	if (err != nil) {
 		glog.Errorln(err)
 	}
-	t.Execute(w, NodeStruct.AllNodes)
+	t.Execute(w, AllNodes)
 }
 
 func filePageHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	glog.Infoln("[File Page] method: ", r.Method)
-	if !sysConfigured() {
+	if !SysConfig.SysConfigured() {
 		glog.Infoln("URL: " + r.URL.Path + "not configured, redirect to index.html")
 		http.Redirect(w, r, "/index", http.StatusFound)
 		return
@@ -203,7 +200,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	glog.Infoln("[DOWNLOAD] method: ", r.Method)
 
-	if !sysConfigured() {
+	if !SysConfig.SysConfigured() {
 		glog.Infoln("URL: " + r.URL.Path + " not configured, redirect to index.html")
 		http.Redirect(w, r, "/index", http.StatusFound)
 	} else {
@@ -223,7 +220,7 @@ func deleteHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	glog.Infoln("[DELETE] method: ", r.Method)
 
-	if !sysConfigured() {
+	if !SysConfig.SysConfigured() {
 		glog.Infoln("URL: " + r.URL.Path + " not configured, redirect to index.html")
 		http.Redirect(w, r, "/index", http.StatusFound)
 	} else {
@@ -247,16 +244,8 @@ func fileHandle(source string) {
 	file01.InitRddtFiles()
 }
 
-func findFileInAll(name string) (file File.File) {
-	for _, tempFile := range File.AllFiles {
-		if tempFile.FileFullName == name {
-			return tempFile
-		}
-	}
-	return
-}
-
 func greetHandler(w http.ResponseWriter, r *http.Request) {
+	//在Master中建立空Node变量
 	var node NodeStruct.Node
 	if r.Body == nil {
 		http.Error(w, "Please send a request body", 400)
@@ -267,10 +256,93 @@ func greetHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 400)
 		return
 	}
-	fmt.Println(node)
 	NodeStruct.IDCounter++
-	node.ID=NodeStruct.IDCounter
-	fmt.Printf("Hello %d", node.ID)
+	node.ID = NodeStruct.IDCounter
+	fmt.Printf("Hello %d\n", node.ID)
+	//todo : return ID to node
 
-	NodeStruct.AllNodes = append(NodeStruct.AllNodes, node)
+	//先将新节点加入空节点slice中
+	EmptyNodes = append(EmptyNodes, node.ID)
+
+	//先将新节点加入空节点slice中
+	AllNodes = append(AllNodes, node)
+
+	//根据情况，将新节点加入data／rddt slice中
+	if !appendNode(&node) {
+		glog.Infof("Still in Empty Slice %+v", node)
+	} else {
+		glog.Infof("%+v", node)
+	}
+	sendIDtoNode(node.ID)
+}
+
+func NodeConfigured() bool {
+	//todo : auto configure node
+
+	return len(AllNodes) != 0
+}
+
+func findFileInAll(name string) *File.File {
+	for _, tempFile := range File.AllFiles {
+		if tempFile.FileFullName == name {
+			return &tempFile
+		}
+	}
+	return nil
+}
+
+func checkDataNodeNum() int {
+	return SysConfig.SysConfig.DataNum - len(DataNodes)
+}
+
+func checkRddtNodeNum() int {
+	return SysConfig.SysConfig.RddtNum - len(RddtNodes)
+}
+
+func SliceIndex(limit int, predicate func(i int) bool) int {
+	for i := 0; i < limit; i++ {
+		if predicate(i) {
+			return i
+		}
+	}
+	return -1
+}
+
+func appendNode(node *NodeStruct.Node) bool {
+	if checkDataNodeNum() > 0 {
+		emptyToData(node)
+		index := SliceIndex(len(EmptyNodes), func(i int) bool {
+			return EmptyNodes[i] == node.ID
+		})
+		EmptyNodes = append(EmptyNodes[:index], EmptyNodes[index + 1:]...)
+		return true;
+	} else if checkRddtNodeNum() > 0 {
+		emptyToRddt(node)
+		index := SliceIndex(len(EmptyNodes), func(i int) bool {
+			return EmptyNodes[i] == node.ID
+		})
+		EmptyNodes = append(EmptyNodes[:index], EmptyNodes[index + 1:]...)
+		return true;
+	} else {
+		return false;
+	}
+}
+
+func emptyToData(node *NodeStruct.Node) {
+	DataNodes = append(DataNodes, node.ID)
+}
+
+func emptyToRddt(node *NodeStruct.Node) {
+	RddtNodes = append(RddtNodes, node.ID)
+}
+
+func sendIDtoNode(node uint) {
+	//b := new(bytes.Buffer)
+	//json.NewEncoder(b).Encode(node)
+	//fmt.Printf(node.Address.String() + ":" + strconv.Itoa(node.Port) + "/getID")
+	//res, err := http.Post("http://" + node.Address.String() + ":" + strconv.Itoa(node.Port) + "/getID", "application/json; charset=utf-8", b)
+	//if err != nil {
+	//	glog.Error(err)
+	//}
+	//io.Copy(os.Stdout, res.Body)
 }

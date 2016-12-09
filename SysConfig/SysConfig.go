@@ -15,6 +15,10 @@ var SysConfig struct {
 	RddtNum  int
 }
 
+func SysConfigured() bool {
+	return SysConfig.FaultNum != 0 && SysConfig.RowNum != 0
+}
+
 //初始化容错数和行数配置
 func InitConfig(fault, row int) {
 	if (fault <= 1 || row <= 1) {

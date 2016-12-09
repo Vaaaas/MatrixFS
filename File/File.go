@@ -11,6 +11,7 @@ import (
 	"math"
 )
 
+//todo : remove to map
 var AllFiles = []File{}
 
 func SliceIndex(limit int, predicate func(i int) bool) int {
@@ -60,31 +61,6 @@ func (file *File) Init(source string) error {
 		return nil
 	}
 }
-
-//func (file File) cpyFile(source string) (error) {
-//	in, err := os.Open(source)
-//	if err != nil {
-//		return err
-//	}
-//	defer in.Close()
-//	out, err := os.Create("./temp/" + file.FileFullName)
-//	if err != nil {
-//		glog.Error(err)
-//		panic(err)
-//	}
-//	defer func() {
-//		cerr := out.Close()
-//		if err == nil {
-//			err = cerr
-//		}
-//	}()
-//	if _, err = io.Copy(out, in); err != nil {
-//		glog.Error(err)
-//		panic(err)
-//	}
-//	err = out.Sync()
-//	return nil
-//}
 
 func (file File) SliceFileName() (string, string) {
 	if file.FileFullName != "" {

@@ -11,7 +11,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"fmt"
 )
 
 var nodeInfo NodeStruct.Node
@@ -24,7 +23,7 @@ func main() {
 	var master string
 	flag.StringVar(&master, "master", "127.0.0.1:8080", "Master server IP & Port")
 	flag.StringVar(&local, "node", "127.0.0.1:9090", "Local Node IP & Port")
-	flag.StringVar(&storePath, "stpath", "./store", "Local Storage Path")
+	flag.StringVar(&storePath, "stpath", "./storage", "Local Storage Path")
 	//when debug, log_dir="./log"
 	flag.Parse()
 	//Trigger on exit, write log into files
@@ -56,14 +55,14 @@ func main() {
 		panic(err)
 	}
 	//Get Free Space of Storage Path
-	volume := NodeStruct.DiskFreeSize(storePath)
+	volume := NodeStruct.DiskUsage(storePath)
 	glog.Infof("Store Path: %s, Free space: %d", storePath, volume)
 
 	InitStruct(&nodeInfo, NodeAdd.IP, NodeAdd.Port, volume)
 
 	connectMaster(MasterAdd)
 
-
+	http.HandleFunc("/getID", getIDHandler)
 
 	if err := http.ListenAndServe(":" + strconv.Itoa(NodeAdd.Port), nil); err != nil {
 		glog.Errorln(err)
@@ -71,24 +70,30 @@ func main() {
 	}
 }
 
+func getIDHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Body == nil {
+		http.Error(w, "Please send a request body", 400)
+		return
+	}
+	err := json.NewDecoder(r.Body).Decode(&nodeInfo.ID)
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	glog.Infoln("ID Refreshed! %d", nodeInfo.ID)
+}
+
 func connectMaster(master *net.TCPAddr) error {
 	glog.Infof("Connect to Master IP : %s", master.String())
 
 	b := new(bytes.Buffer)
 	json.NewEncoder(b).Encode(nodeInfo)
-	fmt.Printf(MasterAdd.String() + "/greet")
 	res, err := http.Post("http://" + MasterAdd.String() + "/greet", "application/json; charset=utf-8", b)
 	if err != nil {
 		glog.Error(err)
 	}
 	io.Copy(os.Stdout, res.Body)
 
-	//conn, err := net.DialTCP("tcp", nil, masterAddr)
-	//if err != nil {
-	//	glog.Errorln(err)
-	//	panic(err)
-	//}
-	//_, err = conn.Write([]byte("HEAD / HTTP/1.0"))
 	return nil
 }
 

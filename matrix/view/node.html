@@ -33,6 +33,7 @@
         <div class="col-sm-10 col-sm-offset-1 col-md-10 col-md-offset-1 main">
             <div class="container row">
                 <h1 class="sub-header col-md-9 col-lg-10">节点列表</h1>
+                <button class="btn btn-success col-md-1 col-lg-1" data-toggle="modal" style="margin-top:30px">自动分配</button>
             </div>
             <div class="table-responsive row">
                 <table class="table table-striped">
@@ -54,12 +55,6 @@
                         <td>{{.Port}}</td>
                         <td>{{.Volume}} GB</td>
                         <td>{{if .Status}} 运行中 {{else}} 丢失 {{end}}</td>
-                        <!--<td>-->
-                        <!--<a href="/delete?fileName={{.FileFullName}}">-->
-                        <!--<button type="button" class="btn btn-danger">删除-->
-                        <!--</button>-->
-                        <!--</a>-->
-                        <!--</td>-->
                     </tr>
                     {{end}}
                     </tbody>
