@@ -10,6 +10,9 @@ import (
 	"strconv"
 	"bytes"
 	"encoding/json"
+	"path/filepath"
+	"log"
+	"strings"
 	"io"
 )
 
@@ -17,13 +20,14 @@ var nodeInfo NodeStruct.Node
 var MasterAdd *net.TCPAddr
 var NodeAdd *net.TCPAddr
 
+var StorePath string
+
 func main() {
 	var local string
-	var storePath string
 	var master string
 	flag.StringVar(&master, "master", "127.0.0.1:8080", "Master server IP & Port")
 	flag.StringVar(&local, "node", "127.0.0.1:9090", "Local Node IP & Port")
-	flag.StringVar(&storePath, "stpath", "./storage", "Local Storage Path")
+	flag.StringVar(&StorePath, "stpath", "./storage", "Local Storage Path")
 	//when debug, log_dir="./log"
 	flag.Parse()
 	//Trigger on exit, write log into files
@@ -34,7 +38,7 @@ func main() {
 		glog.Errorln(err)
 		panic(err)
 	}
-	err = os.MkdirAll(storePath, 0766)
+	err = os.MkdirAll(StorePath, 0766)
 	if err != nil {
 		glog.Errorln(err)
 		panic(err)
@@ -54,15 +58,21 @@ func main() {
 		glog.Errorln(err)
 		panic(err)
 	}
+
+	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		log.Fatal(err)
+	}
+	dir = strings.Replace(dir, "\\", "/", -1)
 	//Get Free Space of Storage Path
-	volume := NodeStruct.DiskUsage(storePath)
-	glog.Infof("Store Path: %s, Free space: %d", storePath, volume)
+	volume := NodeStruct.DiskUsage(dir)
+	glog.Infof("Store Path: %s, Free space: %d", StorePath, volume)
 
 	InitStruct(&nodeInfo, NodeAdd.IP, NodeAdd.Port, volume)
 
 	connectMaster(MasterAdd)
 
-	http.HandleFunc("/getID", getIDHandler)
+	http.HandleFunc("/upload", uploadHandler)
 
 	if err := http.ListenAndServe(":" + strconv.Itoa(NodeAdd.Port), nil); err != nil {
 		glog.Errorln(err)
@@ -70,17 +80,36 @@ func main() {
 	}
 }
 
-func getIDHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Body == nil {
-		http.Error(w, "Please send a request body", 400)
-		return
+func uploadHandler(w http.ResponseWriter, r *http.Request) {
+	glog.Infoln("[UPLOAD] method: ", r.Method)
+	if r.Method == "GET" {
+		glog.Infoln("[/UPLOAD] " + r.URL.Path)
+	} else {
+		r.ParseMultipartForm(32 << 20)
+		file, handler, err := r.FormFile("uploadfile")
+		if err != nil {
+			glog.Error(err)
+			panic(err)
+		}
+		defer file.Close()
+		//fmt.Fprintf(w, "%v", handler.Header)
+		longSpl := strings.Split(handler.Filename, "/")
+		typeSpl := strings.Split(longSpl[len(longSpl) - 2], ".")
+
+		err = os.MkdirAll(StorePath + "/" + typeSpl[0] + "/", 0766)
+		if err != nil {
+			glog.Errorln(err)
+			panic(err)
+		}
+
+		f, err := os.OpenFile(StorePath + "/" + typeSpl[0] + "/" + longSpl[len(longSpl) - 1], os.O_WRONLY | os.O_CREATE, 0666)
+		if err != nil {
+			glog.Error(err)
+			panic(err)
+		}
+		defer f.Close()
+		io.Copy(f, file)
 	}
-	err := json.NewDecoder(r.Body).Decode(&nodeInfo.ID)
-	if err != nil {
-		http.Error(w, err.Error(), 400)
-		return
-	}
-	glog.Infoln("ID Refreshed! %d", nodeInfo.ID)
 }
 
 func connectMaster(master *net.TCPAddr) error {
@@ -92,7 +121,11 @@ func connectMaster(master *net.TCPAddr) error {
 	if err != nil {
 		glog.Error(err)
 	}
-	io.Copy(os.Stdout, res.Body)
+	id, err := strconv.Atoi(res.Header.Get("ID"))
+	nodeInfo.ID = (uint)(id)
+	if err != nil {
+		glog.Error(err)
+	}
 
 	return nil
 }

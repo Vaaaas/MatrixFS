@@ -13,9 +13,13 @@ import (
 	"strconv"
 	"html/template"
 	"io"
+	"io/ioutil"
+	"bytes"
+	"mime/multipart"
+	"math"
 )
 
-var AllNodes []NodeStruct.Node
+var AllNodes = make(map[uint]NodeStruct.Node)
 var DataNodes []uint
 var RddtNodes []uint
 var LostNodes []uint
@@ -242,6 +246,9 @@ func fileHandle(source string) {
 	glog.Infof("File %s init finished", name + ext)
 	file01.InitDataFiles()
 	file01.InitRddtFiles()
+
+	// todo : send slices to Nodes
+	SendToNode(file01)
 }
 
 func greetHandler(w http.ResponseWriter, r *http.Request) {
@@ -259,13 +266,12 @@ func greetHandler(w http.ResponseWriter, r *http.Request) {
 	NodeStruct.IDCounter++
 	node.ID = NodeStruct.IDCounter
 	fmt.Printf("Hello %d\n", node.ID)
-	//todo : return ID to node
 
 	//先将新节点加入空节点slice中
 	EmptyNodes = append(EmptyNodes, node.ID)
 
 	//先将新节点加入空节点slice中
-	AllNodes = append(AllNodes, node)
+	AllNodes[node.ID] = node
 
 	//根据情况，将新节点加入data／rddt slice中
 	if !appendNode(&node) {
@@ -273,7 +279,8 @@ func greetHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		glog.Infof("%+v", node)
 	}
-	sendIDtoNode(node.ID)
+	w.Header().Set("ID", strconv.Itoa((int)(node.ID)))
+	w.WriteHeader(http.StatusOK)
 }
 
 func NodeConfigured() bool {
@@ -336,13 +343,82 @@ func emptyToRddt(node *NodeStruct.Node) {
 	RddtNodes = append(RddtNodes, node.ID)
 }
 
-func sendIDtoNode(node uint) {
-	//b := new(bytes.Buffer)
-	//json.NewEncoder(b).Encode(node)
-	//fmt.Printf(node.Address.String() + ":" + strconv.Itoa(node.Port) + "/getID")
-	//res, err := http.Post("http://" + node.Address.String() + ":" + strconv.Itoa(node.Port) + "/getID", "application/json; charset=utf-8", b)
-	//if err != nil {
-	//	glog.Error(err)
-	//}
-	//io.Copy(os.Stdout, res.Body)
+func SendToNode(file File.File) {
+	for i := 0; i < SysConfig.SysConfig.DataNum; i++ {
+		for j := 0; j < SysConfig.SysConfig.RowNum; j++ {
+			postOneFile(file, true, DataNodes[i], i, j, 0)
+		}
+	}
+
+	nodeCounter := 0
+	fileCounter := 0
+	rddtFileCounter := 0
+	for xx := 0; xx < SysConfig.SysConfig.FaultNum; xx++ {
+		k := (int)((xx + 2) / 2 * (int)(math.Pow(-1, (float64)(xx + 2))))
+		for fileCounter < SysConfig.SysConfig.DataNum {
+			glog.Infof("Rddt Node Num : %d \t k : %d \t fileCounter : %d \t nodeCounter : %d\n", nodeCounter, k, fileCounter, nodeCounter)
+			postOneFile(file, false, RddtNodes[nodeCounter], k, fileCounter, nodeCounter)
+			fileCounter++;
+			rddtFileCounter++;
+			if (rddtFileCounter % (SysConfig.SysConfig.SliceNum / SysConfig.SysConfig.DataNum) == 0) {
+				nodeCounter++;
+				rddtFileCounter = 0;
+			}
+			if (fileCounter != SysConfig.SysConfig.DataNum) {
+				continue;
+			}
+			fileCounter = 0;
+			break;
+		}
+	}
+}
+
+func postOneFile(file File.File, isData bool, nodeID uint, posiX, posiY, nodeCounter int) {
+	bodyBuf := &bytes.Buffer{}
+	bodyWriter := multipart.NewWriter(bodyBuf)
+	var filePath string
+	if isData {
+		filePath = "./temp/DATA." + strconv.Itoa(posiX) + "/" + file.FileFullName + "." + strconv.Itoa((int)(posiX)) + strconv.Itoa(posiY)
+	} else {
+		filePath = "./temp/RDDT." + strconv.Itoa(nodeCounter) + "/" + file.FileFullName + "." + strconv.Itoa((int)(posiX)) + strconv.Itoa(posiY)
+	}
+
+	//关键的一步操作
+	fileWriter, err := bodyWriter.CreateFormFile("uploadfile", filePath)
+	if err != nil {
+		glog.Errorf("error writing to buffer + %s", err)
+		panic(err)
+	}
+
+	//打开文件句柄操作
+	fh, err := os.Open(filePath)
+	if err != nil {
+		glog.Errorln("error opening file + %s", err)
+		panic(err)
+	}
+
+	//iocopy
+	_, err = io.Copy(fileWriter, fh)
+	if err != nil {
+		glog.Errorln(err)
+		panic(err)
+	}
+
+	contentType := bodyWriter.FormDataContentType()
+	bodyWriter.Close()
+
+	url := "http://" + AllNodes[nodeID].Address.String() + ":" + strconv.Itoa(AllNodes[nodeID].Port) + "/upload"
+	resp, err := http.Post(url, contentType, bodyBuf)
+	if err != nil {
+		glog.Errorln(err)
+		panic(err)
+	}
+	defer resp.Body.Close()
+	resp_body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		glog.Errorln(err)
+		panic(err)
+	}
+	fmt.Println(resp.Status)
+	fmt.Println(string(resp_body))
 }

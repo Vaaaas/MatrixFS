@@ -45,13 +45,13 @@ func DiskUsage(path string) (free float64) {
 	lpFreeBytesAvailable := int64(0)
 	lpTotalNumberOfBytes := int64(0)
 	lpTotalNumberOfFreeBytes := int64(0)
-	_, _, err := c.Call(uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr("path"))),
+	_, _, err := c.Call(uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(path))),
 		uintptr(unsafe.Pointer(&lpFreeBytesAvailable)),
 		uintptr(unsafe.Pointer(&lpTotalNumberOfBytes)),
 		uintptr(unsafe.Pointer(&lpTotalNumberOfFreeBytes)))
 	if err != nil {
 		glog.Error(err)
-		panic(err)
+		//panic(err)
 	}
-	return (float64)(lpFreeBytesAvailable / 1024 / 1024.0)
+	return (float64)(lpFreeBytesAvailable / 1024 / 1024.0 / 1000)
 }
