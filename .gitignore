@@ -43,17 +43,10 @@ matrix/temp/
 .vscode/launch.json
 
 *.iml
-/matrix/Server
-/matrix/matrix
-/matrix/debug
-/node/node
-/node/log/
 
 *.exe
 
-node/Node 00
-node/Node 01
-node/Node 02
-node/Node 03
-node/Node 04
-node/Node 05
+node/Node *
+/node/log*/
+/node/storage*/
+/matrix/Matrix

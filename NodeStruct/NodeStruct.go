@@ -3,8 +3,6 @@ package NodeStruct
 import (
 	"syscall"
 	"net"
-	"unsafe"
-	"github.com/golang/glog"
 )
 
 var IDCounter uint
@@ -31,27 +29,27 @@ const (
 // disk usage of path/disk
 func DiskUsage(path string) (free float64) {
 	//macOS:
-	//fs := syscall.Statfs_t{}
-	//err := syscall.Statfs(path, &fs)
-	//if err != nil {
-	//	return
-	//}
-	//free = float64(fs.Bfree) * float64(fs.Bsize)
-	//return free / float64(GB)
+	fs := syscall.Statfs_t{}
+	err := syscall.Statfs(path, &fs)
+	if err != nil {
+		return
+	}
+	free = float64(fs.Bfree) * float64(fs.Bsize)
+	return free / float64(GB)
 
 	//Win:
-	h := syscall.MustLoadDLL("kernel32.dll")
-	c := h.MustFindProc("GetDiskFreeSpaceExW")
-	lpFreeBytesAvailable := int64(0)
-	lpTotalNumberOfBytes := int64(0)
-	lpTotalNumberOfFreeBytes := int64(0)
-	_, _, err := c.Call(uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(path))),
-		uintptr(unsafe.Pointer(&lpFreeBytesAvailable)),
-		uintptr(unsafe.Pointer(&lpTotalNumberOfBytes)),
-		uintptr(unsafe.Pointer(&lpTotalNumberOfFreeBytes)))
-	if err != nil {
-		glog.Error(err)
-		//panic(err)
-	}
-	return (float64)(lpFreeBytesAvailable / 1024 / 1024.0 / 1000)
+	//h := syscall.MustLoadDLL("kernel32.dll")
+	//c := h.MustFindProc("GetDiskFreeSpaceExW")
+	//lpFreeBytesAvailable := int64(0)
+	//lpTotalNumberOfBytes := int64(0)
+	//lpTotalNumberOfFreeBytes := int64(0)
+	//_, _, err := c.Call(uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(path))),
+	//	uintptr(unsafe.Pointer(&lpFreeBytesAvailable)),
+	//	uintptr(unsafe.Pointer(&lpTotalNumberOfBytes)),
+	//	uintptr(unsafe.Pointer(&lpTotalNumberOfFreeBytes)))
+	//if err != nil {
+	//	glog.Error(err)
+	//	//panic(err)
+	//}
+	//return (float64)(lpFreeBytesAvailable / 1024 / 1024.0 / 1000)
 }

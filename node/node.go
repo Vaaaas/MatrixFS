@@ -30,10 +30,11 @@ func main() {
 	flag.StringVar(&StorePath, "stpath", "./storage", "Local Storage Path")
 	//when debug, log_dir="./log"
 	flag.Parse()
+
 	//Trigger on exit, write log into files
 	defer glog.Flush()
 	glog.Info("Node start here")
-	err := os.MkdirAll("./log", 0766)
+	err := os.MkdirAll(flag.Lookup("log_dir").Value.String(), 0766)
 	if err != nil {
 		glog.Errorln(err)
 		panic(err)
@@ -73,6 +74,9 @@ func main() {
 	connectMaster(MasterAdd)
 
 	http.HandleFunc("/upload", uploadHandler)
+	http.HandleFunc("/delete", deleteHandler)
+
+	http.Handle("/download/", http.StripPrefix("/download/", http.FileServer(http.Dir(StorePath))))
 
 	if err := http.ListenAndServe(":" + strconv.Itoa(NodeAdd.Port), nil); err != nil {
 		glog.Errorln(err)
@@ -94,21 +98,45 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		defer file.Close()
 		//fmt.Fprintf(w, "%v", handler.Header)
 		longSpl := strings.Split(handler.Filename, "/")
-		typeSpl := strings.Split(longSpl[len(longSpl) - 2], ".")
 
-		err = os.MkdirAll(StorePath + "/" + typeSpl[0] + "/", 0766)
+		err = os.MkdirAll(StorePath + "/", 0766)
 		if err != nil {
 			glog.Errorln(err)
 			panic(err)
 		}
 
-		f, err := os.OpenFile(StorePath + "/" + typeSpl[0] + "/" + longSpl[len(longSpl) - 1], os.O_WRONLY | os.O_CREATE, 0666)
+		f, err := os.OpenFile(StorePath + "/" + longSpl[len(longSpl) - 1], os.O_WRONLY | os.O_CREATE, 0666)
 		if err != nil {
 			glog.Error(err)
 			panic(err)
 		}
 		defer f.Close()
 		io.Copy(f, file)
+	}
+}
+
+func deleteHandler(w http.ResponseWriter, r *http.Request) {
+	glog.Infoln("[DELETE] method: ", r.Method)
+	if r.Method == "DELETE" {
+		glog.Infoln("[/DELETE] " + r.URL.Path)
+
+		fileName := r.Header.Get("fileName")
+		glog.Info("File to Delete : " + fileName)
+
+		glog.Info("File to [Delete] Name: " + fileName)
+		if _, err := os.Stat(StorePath + "/" + fileName); os.IsNotExist(err) {
+			glog.Warningf("[File to Delete NOT EXIST] %s", StorePath + "/" + fileName)
+		} else {
+			err := os.Remove(StorePath + "/" + fileName)
+			if err != nil {
+				glog.Errorln(err)
+			} else {
+				glog.Infof("[File to Delete] %s", StorePath + "/" + fileName)
+			}
+		}
+
+	} else {
+		glog.Infoln("[/DELETE] else" + r.URL.Path)
 	}
 }
 

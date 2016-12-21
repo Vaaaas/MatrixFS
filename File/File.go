@@ -306,10 +306,6 @@ func (file File)DeleteAllTempFiles() error {
 			glog.Infof("[File to Delete] temp/" + file.FileFullName)
 		}
 	}
-	index := SliceIndex(len(AllFiles), func(i int) bool {
-		return AllFiles[i].FileFullName == file.FileFullName
-	})
-	AllFiles = append(AllFiles[:index], AllFiles[index + 1:]...)
 	return nil
 }
 

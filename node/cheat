@@ -1,0 +1,33 @@
+In Matrix Server:
+Data Path:
+	for i := 0; i < SysConfig.SysConfig.DataNum; i++ {
+		for j := 0; j < SysConfig.SysConfig.SliceNum / SysConfig.SysConfig.DataNum; j++ {
+            doSomething("temp/DATA." + strconv.Itoa(i) + "/" + file.FileFullName + "." + strconv.Itoa(i) + strconv.Itoa(j))
+        }
+    }
+
+Rddt Path:
+    rddtFolderCounter := 0
+    rddtRowCounter := 0
+    for faultCount := 0; faultCount < SysConfig.SysConfig.FaultNum; faultCount++ {
+        k := (int)((faultCount + 2) / 2 * (int)(math.Pow(-1, (float64)(faultCount + 2))))
+        for i := 0; i < SysConfig.SysConfig.DataNum; i++ {
+            if (rddtRowCounter % SysConfig.SysConfig.RowNum == 0&&(i != 0 || faultCount != 0)) {
+                rddtRowCounter = 1;
+                rddtFolderCounter++;
+            } else {
+                rddtRowCounter++;
+            }
+            //i :
+            //k :
+            //rddtFolderCounter
+            doSomething(i, k, rddtFolderCounter)
+        }
+    }
+
+    Line:
+
+
+
+In Node:
+

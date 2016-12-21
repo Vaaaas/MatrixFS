@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"html/template"
 	"io"
@@ -51,10 +50,12 @@ func main() {
 	http.HandleFunc("/file", filePageHandler)
 	http.HandleFunc("/node", nodeHandler)
 
-	http.HandleFunc("/upload", uploadHandler)
-	http.HandleFunc("/download", downloadHandler)
-	http.HandleFunc("/delete", deleteHandler)
 	http.HandleFunc("/greet", greetHandler)
+	http.HandleFunc("/upload", uploadHandler)
+	http.HandleFunc("/delete", deleteHandler)
+
+	http.HandleFunc("/download", downloadHandler)
+
 
 	http.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.Dir("./js/"))))
 	http.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("./css/"))))
@@ -193,7 +194,8 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		defer f.Close()
 		io.Copy(f, file)
-		fileHandle("temp/" + handler.Filename)
+		file01:=fileHandle("temp/" + handler.Filename)
+		file01.DeleteAllTempFiles()
 		glog.Infof("File upload & init finished, redirect to file page : %s, Content-Type: %s", handler.Filename, r.Header.Get("Content-Type"))
 		http.Redirect(w, r, "/file", http.StatusFound)
 	}
@@ -211,10 +213,12 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 		glog.Infoln("[Form-File_Name]" + r.Form["fileName"][0])
 		fileName := r.Form["fileName"][0]
 		targetFile := findFileInAll(fileName)
+		collectFiles(targetFile)
 		targetFile.GetFile("temp/")
 		w.Header().Set("Content-Disposition", "attachment; filename=" + fileName)
 		w.Header().Set("Content-Type", r.Header.Get("Content-Type"))
 		http.ServeFile(w, r, "temp/" + fileName)
+		targetFile.DeleteAllTempFiles()
 		glog.Infoln("[Download] " + targetFile.FileFullName + " Finished, Content-Type: " + r.Header.Get("Content-Type"))
 	}
 }
@@ -231,14 +235,19 @@ func deleteHandler(w http.ResponseWriter, r *http.Request) {
 		glog.Infoln("[Form-File_Name]" + r.Form["fileName"][0])
 		fileName := r.Form["fileName"][0]
 		targetFile := findFileInAll(fileName)
+		DeleteSlices(targetFile)
 		targetFile.DeleteAllTempFiles()
+		index := SliceIndex(len(File.AllFiles), func(i int) bool {
+			return File.AllFiles[i].FileFullName == targetFile.FileFullName
+		})
+		File.AllFiles = append(File.AllFiles[:index], File.AllFiles[index + 1:]...)
 		glog.Infoln("[Download] " + targetFile.FileFullName + " Finished")
 		http.Redirect(w, r, "/file", http.StatusFound)
 	}
 
 }
 
-func fileHandle(source string) {
+func fileHandle(source string) (*File.File){
 	glog.Infoln("Start FileHandler")
 	var file01 File.File
 	file01.Init(source)
@@ -249,6 +258,7 @@ func fileHandle(source string) {
 
 	// todo : send slices to Nodes
 	SendToNode(file01)
+	return &file01
 }
 
 func greetHandler(w http.ResponseWriter, r *http.Request) {
@@ -265,7 +275,7 @@ func greetHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	NodeStruct.IDCounter++
 	node.ID = NodeStruct.IDCounter
-	fmt.Printf("Hello %d\n", node.ID)
+	glog.Infof("Hello %d\n", node.ID)
 
 	//先将新节点加入空节点slice中
 	EmptyNodes = append(EmptyNodes, node.ID)
@@ -419,6 +429,118 @@ func postOneFile(file File.File, isData bool, nodeID uint, posiX, posiY, nodeCou
 		glog.Errorln(err)
 		panic(err)
 	}
-	fmt.Println(resp.Status)
-	fmt.Println(string(resp_body))
+	glog.Info(resp.Status)
+	glog.Info(string(resp_body))
+}
+
+func DeleteSlices(file *File.File) {
+	for i := 0; i < SysConfig.SysConfig.DataNum; i++ {
+		for j := 0; j < SysConfig.SysConfig.RowNum; j++ {
+			deleteOneFile(file, true, DataNodes[i], i, j)
+		}
+	}
+
+	nodeCounter := 0
+	fileCounter := 0
+	rddtFileCounter := 0
+	for xx := 0; xx < SysConfig.SysConfig.FaultNum; xx++ {
+		k := (int)((xx + 2) / 2 * (int)(math.Pow(-1, (float64)(xx + 2))))
+		for fileCounter < SysConfig.SysConfig.DataNum {
+			glog.Infof("Rddt Node Num : %d \t k : %d \t fileCounter : %d \t nodeCounter : %d\n", nodeCounter, k, fileCounter, nodeCounter)
+			deleteOneFile(file, false, RddtNodes[nodeCounter], k, fileCounter)
+			fileCounter++;
+			rddtFileCounter++;
+			if (rddtFileCounter % (SysConfig.SysConfig.SliceNum / SysConfig.SysConfig.DataNum) == 0) {
+				nodeCounter++;
+				rddtFileCounter = 0;
+			}
+			if (fileCounter != SysConfig.SysConfig.DataNum) {
+				continue;
+			}
+			fileCounter = 0;
+			break;
+		}
+	}
+}
+
+func deleteOneFile(file *File.File, isData bool, nodeID uint, posiX, posiY int) {
+	var fileName string
+	if isData {
+		fileName = file.FileFullName + "." + strconv.Itoa((int)(posiX)) + strconv.Itoa(posiY)
+	} else {
+		fileName = file.FileFullName + "." + strconv.Itoa((int)(posiX)) + strconv.Itoa(posiY)
+	}
+
+	url := "http://" + AllNodes[nodeID].Address.String() + ":" + strconv.Itoa(AllNodes[nodeID].Port) + "/delete"
+	glog.Info("[DELETE] URL "+url)
+
+
+	req, err := http.NewRequest("DELETE", url, nil)
+	if err != nil {
+		glog.Errorln(err)
+		panic(err)
+	}
+	req.Header.Set("fileName",fileName)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		glog.Errorln(err)
+		panic(err)
+	}
+
+	defer resp.Body.Close()
+	resp_body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		glog.Errorln(err)
+		panic(err)
+	}
+	glog.Info(resp.Status)
+	glog.Info(string(resp_body))
+}
+
+func collectFiles(file *File.File){
+	for i := 0; i < SysConfig.SysConfig.DataNum; i++ {
+		for j := 0; j < SysConfig.SysConfig.RowNum; j++ {
+			getOneFile(file, true, DataNodes[i], i, j, 0)
+		}
+	}
+
+	nodeCounter := 0
+	fileCounter := 0
+	rddtFileCounter := 0
+	for xx := 0; xx < SysConfig.SysConfig.FaultNum; xx++ {
+		k := (int)((xx + 2) / 2 * (int)(math.Pow(-1, (float64)(xx + 2))))
+		for fileCounter < SysConfig.SysConfig.DataNum {
+			glog.Infof("Rddt Node Num : %d \t k : %d \t fileCounter : %d \t nodeCounter : %d\n", nodeCounter, k, fileCounter, nodeCounter)
+			getOneFile(file, false, RddtNodes[nodeCounter], k, fileCounter, nodeCounter)
+			fileCounter++;
+			rddtFileCounter++;
+			if (rddtFileCounter % (SysConfig.SysConfig.SliceNum / SysConfig.SysConfig.DataNum) == 0) {
+				nodeCounter++;
+				rddtFileCounter = 0;
+			}
+			if (fileCounter != SysConfig.SysConfig.DataNum) {
+				continue;
+			}
+			fileCounter = 0;
+			break;
+		}
+	}
+}
+
+func getOneFile(file *File.File, isData bool, nodeID uint, posiX, posiY, nodeCounter int) {
+	var filePath string
+	var fileName = file.FileFullName + "." + strconv.Itoa((int)(posiX)) + strconv.Itoa(posiY)
+	if isData {
+		filePath = "./temp/DATA." + strconv.Itoa(posiX) + "/" + fileName
+	} else {
+		filePath = "./temp/RDDT." + strconv.Itoa(nodeCounter) + "/" + fileName
+	}
+
+	url := "http://" + AllNodes[nodeID].Address.String() + ":" + strconv.Itoa(AllNodes[nodeID].Port) + "/download/"+fileName
+	res, _ := http.Get(url)
+	fileGet, _ := os.Create(filePath)
+	io.Copy(fileGet, res.Body)
+
+	glog.Info(res.Status)
 }
