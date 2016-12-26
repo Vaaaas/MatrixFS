@@ -46,7 +46,7 @@ matrix/temp/
 
 *.exe
 
-node/Node *
+node/Node*
 /node/log*/
 /node/storage*/
 /matrix/Matrix
