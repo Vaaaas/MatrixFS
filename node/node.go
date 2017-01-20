@@ -14,6 +14,7 @@ import (
 	"log"
 	"strings"
 	"io"
+	"time"
 )
 
 var nodeInfo NodeStruct.Node
@@ -59,7 +60,6 @@ func main() {
 		glog.Errorln(err)
 		panic(err)
 	}
-
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
 		log.Fatal(err)
@@ -71,7 +71,10 @@ func main() {
 
 	InitStruct(&nodeInfo, NodeAdd.IP, NodeAdd.Port, volume)
 
-	connectMaster(MasterAdd)
+	go func() {
+		connectMaster(MasterAdd)
+		time.Sleep(4 * time.Second)
+	}()
 
 	http.HandleFunc("/upload", uploadHandler)
 	http.HandleFunc("/delete", deleteHandler)
@@ -141,6 +144,16 @@ func deleteHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func connectMaster(master *net.TCPAddr) error {
+	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		log.Fatal(err)
+	}
+	dir = strings.Replace(dir, "\\", "/", -1)
+	//Get Free Space of Storage Path
+	volume := NodeStruct.DiskUsage(dir)
+	glog.Infof("Store Path: %s, Free space: %d", StorePath, volume)
+
+	nodeInfo.Volume = volume
 	glog.Infof("Connect to Master IP : %s", master.String())
 
 	b := new(bytes.Buffer)

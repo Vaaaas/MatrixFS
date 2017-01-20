@@ -13,6 +13,8 @@ var SysConfig struct {
 	SliceNum int
 	DataNum  int
 	RddtNum  int
+
+	Status   bool
 }
 
 func SysConfigured() bool {
@@ -35,6 +37,8 @@ func InitConfig(fault, row int) {
 		} else {
 			SysConfig.RddtNum = (fault * SysConfig.DataNum) / row
 		}
+
+		SysConfig.Status = true
 
 		glog.Infof("系统参数配置完成：容错数 %d , 行数 %d , 数据分块数 %d , 数据列数 %d , 冗余列数 %d", SysConfig.FaultNum, SysConfig.RowNum, SysConfig.SliceNum, SysConfig.DataNum, SysConfig.RddtNum)
 

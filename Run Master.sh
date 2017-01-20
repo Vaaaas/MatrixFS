@@ -9,7 +9,3 @@ do
 done
 wait
 exit
-
-#go build -o node\Node.exe node\node.go;
-#cd node;
-#node -log_dir="./log" -master="192.168.199.201:8080" -node="192.168.199.220:9090"
