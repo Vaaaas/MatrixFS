@@ -1,22 +1,24 @@
 package NodeStruct
 
 import (
-	"syscall"
 	"net"
+	"syscall"
 	"unsafe"
+
+	"github.com/Vaaaas/MatrixFS/File"
 	"github.com/golang/glog"
+	"github.com/Vaaaas/MatrixFS/SysConfig"
 )
 
 var IDCounter uint
 
 type Node struct {
-	ID       uint `json:"ID"`
-	Address  net.IP `json:Address`
-	Port     int `json:Port`
+	ID       uint    `json:"ID"`
+	Address  net.IP  `json:Address`
+	Port     int     `json:Port`
 	Volume   float64 `json:Volume`
-	Status   bool `json:Status`
-	Lasttime int64 `json:Lasttime`
-
+	Status   bool    `json:Status`
+	Lasttime int64   `json:Lasttime`
 	//Status:
 	//false	 -> 丢失或
 	//true	 -> 正常
@@ -55,4 +57,48 @@ func DiskUsage(path string) (free float64) {
 		//panic(err)
 	}
 	return (float64)(lpFreeBytesAvailable / 1024 / 1024.0 / 1000)
+}
+
+func (node Node) seekInNodes(Nodes []uint) {
+	for _, nodeID := range Nodes {
+		if node.ID == nodeID {
+			return true
+		}
+	}
+}
+
+func (node Node) DetectNode(file File.File, dataNodes []uint, rddtNodes []uint) {
+	if node.seekInNodes(dataNodes) {
+		var allExist = false
+		for faultCount := 0; faultCount < SysConfig.SysConfig.FaultNum; faultCount++ {
+			if (allExist){
+				break;
+			}
+			allExist = true;
+			for rowCount := 0; rowCount < SysConfig.SysConfig.RowNum; rowCount++ {
+				//var result = file.DetectDataFile(this, faultCount, rowCount);
+				//allExist = allExist && result;
+			}
+		}
+		return allExist;
+	} else if node.seekInNodes(rddtNodes) {
+	}
+}
+
+func GetIndexInData(dataNodes []uint, targetID uint) int {
+	for index, dataNodeID := range dataNodes {
+		if dataNodeID == targetID {
+			return index
+		}
+	}
+	return 0
+}
+
+func GetIndexInRddt(rddtNodes []uint, targetID uint) int {
+	for index, rddtNodeID := range rddtNodes {
+		if rddtNodeID == targetID {
+			return index
+		}
+	}
+	return 0
 }

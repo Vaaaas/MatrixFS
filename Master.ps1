@@ -6,4 +6,6 @@ Copy-Item view -Destination $mydoc\MatrixFS\Master\ -Recurse -force
 Copy-Item favicon.ico -Destination $mydoc\MatrixFS\Master\ -force
 go build -o $mydoc\MatrixFS\Master\master.exe matrix.go
 Set-Location $mydoc\MatrixFS\Master\
-.\master.exe -log_dir="./log"
+mkdir log
+$param="-log_dir=./log"
+Start-Process -FilePath $mydoc\MatrixFS\Master\master.exe -ArgumentList $param

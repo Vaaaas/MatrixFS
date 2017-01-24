@@ -67,13 +67,16 @@ func main() {
 	dir = strings.Replace(dir, "\\", "/", -1)
 	//Get Free Space of Storage Path
 	volume := NodeStruct.DiskUsage(dir)
-	glog.Infof("Store Path: %s, Free space: %d", StorePath, volume)
+	glog.Infof("Store Path: %s, Free space: %f", StorePath, volume)
 
 	InitStruct(&nodeInfo, NodeAdd.IP, NodeAdd.Port, volume)
 
 	go func() {
-		connectMaster(MasterAdd)
-		time.Sleep(4 * time.Second)
+		for{
+			glog.Info("Connext Master!")
+			connectMaster(MasterAdd)
+			time.Sleep(4 * time.Second)
+		}
 	}()
 
 	http.HandleFunc("/upload", uploadHandler)
@@ -151,7 +154,7 @@ func connectMaster(master *net.TCPAddr) error {
 	dir = strings.Replace(dir, "\\", "/", -1)
 	//Get Free Space of Storage Path
 	volume := NodeStruct.DiskUsage(dir)
-	glog.Infof("Store Path: %s, Free space: %d", StorePath, volume)
+	glog.Infof("Store Path: %s, Free space: %f", StorePath, volume)
 
 	nodeInfo.Volume = volume
 	glog.Infof("Connect to Master IP : %s", master.String())
@@ -168,6 +171,7 @@ func connectMaster(master *net.TCPAddr) error {
 		glog.Error(err)
 	}
 
+	glog.Info("Connect Finished")
 	return nil
 }
 

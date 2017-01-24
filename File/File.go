@@ -1,14 +1,16 @@
 package File
 
 import (
-	"strings"
-	"os"
-	"github.com/Vaaaas/MatrixFS/SysConfig"
-	"github.com/golang/glog"
 	"errors"
 	"io"
-	"strconv"
 	"math"
+	"os"
+	"strconv"
+	"strings"
+
+	"github.com/Vaaaas/MatrixFS/NodeStruct"
+	"github.com/Vaaaas/MatrixFS/SysConfig"
+	"github.com/golang/glog"
 )
 
 //todo : remove to map
@@ -44,7 +46,7 @@ func (file *File) Init(source string) error {
 	} else {
 		file.FileFullName = fileInfo.Name()
 		file.Size = fileInfo.Size()
-		if ((file.Size % (int64)(SysConfig.SysConfig.SliceNum)) != 0) {
+		if (file.Size % (int64)(SysConfig.SysConfig.SliceNum)) != 0 {
 			file.FillLast = true
 			file.SliceSize = file.Size / (int64)(SysConfig.SysConfig.SliceNum) + 1
 			file.FillSize = file.SliceSize * (int64)(SysConfig.SysConfig.SliceNum) - file.Size
@@ -72,7 +74,7 @@ func (file File) SliceFileName() (string, string) {
 			}
 			name := make([]byte, n - 1)
 			bp := copy(name, slices[0])
-			for _, s := range slices[1:len(slices) - 1] {
+			for _, s := range slices[1 : len(slices) - 1] {
 				bp += copy(name[bp:], ".")
 				bp += copy(name[bp:], s)
 			}
@@ -197,7 +199,7 @@ func (file File) GetFile(targetFolder string) error {
 			panic(err)
 		}
 
-		if (file.FillLast&&(int64)(i) == realSliceNum - 1) {
+		if file.FillLast && (int64)(i) == realSliceNum - 1 {
 			if (int64)(file.FillSize) != file.SliceSize {
 				if _, err := target.Write(buffer[:((int64)(n) - file.FillSize % file.SliceSize)]); err != nil {
 					glog.Error("写入数据分块失败 " + strconv.Itoa(i))
@@ -215,17 +217,17 @@ func (file File) GetFile(targetFolder string) error {
 	return nil
 }
 
-func (file File)InitRddtFiles() error {
+func (file File) InitRddtFiles() error {
 	rddtFolderCounter := 0
 	rddtRowCounter := 0
 	for faultCount := 0; faultCount < SysConfig.SysConfig.FaultNum; faultCount++ {
 		k := (int)((faultCount + 2) / 2 * (int)(math.Pow(-1, (float64)(faultCount + 2))))
 		for i := 0; i < SysConfig.SysConfig.DataNum; i++ {
-			if (rddtRowCounter % SysConfig.SysConfig.RowNum == 0&&(i != 0 || faultCount != 0)) {
-				rddtRowCounter = 1;
-				rddtFolderCounter++;
+			if rddtRowCounter % SysConfig.SysConfig.RowNum == 0 && (i != 0 || faultCount != 0) {
+				rddtRowCounter = 1
+				rddtFolderCounter++
 			} else {
-				rddtRowCounter++;
+				rddtRowCounter++
 			}
 			file.initOneRddtFile(i, k, rddtFolderCounter)
 		}
@@ -233,7 +235,7 @@ func (file File)InitRddtFiles() error {
 	return nil
 }
 
-func (file File)initOneRddtFile(startFolderNum, k, rddtNum int) error {
+func (file File) initOneRddtFile(startFolderNum, k, rddtNum int) error {
 	rddtFilePath, err := os.Create("./temp/Rddt." + strconv.Itoa(rddtNum) + "/" + file.FileFullName + "." + strconv.Itoa(k) + strconv.Itoa(startFolderNum))
 	if err != nil {
 		glog.Error("新建冗余分块文件失败 " + "./temp/Rddt." + strconv.Itoa(rddtNum) + "/" + file.FileFullName + "." + strconv.Itoa(k) + strconv.Itoa(startFolderNum))
@@ -265,7 +267,7 @@ func (file File)initOneRddtFile(startFolderNum, k, rddtNum int) error {
 				panic(err)
 			}
 		}()
-		if (i == 0) {
+		if i == 0 {
 			_, err = sourceFile.Read(buffer)
 			if err != nil && err != io.EOF {
 				glog.Error("buffer读取文件失败 " + strconv.Itoa(i))
@@ -291,9 +293,10 @@ func (file File)initOneRddtFile(startFolderNum, k, rddtNum int) error {
 	}
 	return nil
 }
+
 //todo : Delete all temp files when finished the whole upload operation
 
-func (file File)DeleteAllTempFiles() error {
+func (file File) DeleteAllTempFiles() error {
 	file.deleteDataFiles()
 	file.deleteRddtFiles()
 	if _, err := os.Stat("temp/" + file.FileFullName); os.IsNotExist(err) {
@@ -309,7 +312,7 @@ func (file File)DeleteAllTempFiles() error {
 	return nil
 }
 
-func (file File)deleteDataFiles() error {
+func (file File) deleteDataFiles() error {
 	for i := 0; i < SysConfig.SysConfig.DataNum; i++ {
 		for j := 0; j < SysConfig.SysConfig.SliceNum / SysConfig.SysConfig.DataNum; j++ {
 			if _, err := os.Stat("temp/DATA." + strconv.Itoa(i) + "/" + file.FileFullName + "." + strconv.Itoa(i) + strconv.Itoa(j)); os.IsNotExist(err) {
@@ -328,7 +331,7 @@ func (file File)deleteDataFiles() error {
 	return nil
 }
 
-func (file File)deleteRddtFiles() error {
+func (file File) deleteRddtFiles() error {
 	nodeCounter := 0
 	fileCounter := 0
 	rddtFileCounter := 0
@@ -346,19 +349,32 @@ func (file File)deleteRddtFiles() error {
 				}
 			}
 
-			fileCounter++;
-			rddtFileCounter++;
-			if (rddtFileCounter % (SysConfig.SysConfig.SliceNum / SysConfig.SysConfig.DataNum) == 0) {
-				nodeCounter++;
-				rddtFileCounter = 0;
+			fileCounter++
+			rddtFileCounter++
+			if rddtFileCounter % (SysConfig.SysConfig.SliceNum / SysConfig.SysConfig.DataNum) == 0 {
+				nodeCounter++
+				rddtFileCounter = 0
 			}
-			if (fileCounter != SysConfig.SysConfig.DataNum) {
-				continue;
+			if fileCounter != SysConfig.SysConfig.DataNum {
+				continue
 			}
-			fileCounter = 0;
-			break;
+			fileCounter = 0
+			break
 		}
 	}
 
 	return nil
+}
+
+func LostHandle(LostNodes *[]uint, AllNodes *map[uint]NodeStruct.Node, DataNodes *[]uint, RddtNodes *[]uint, EmptyNodes *[]uint) {
+	//for _, file := range AllFiles {
+	//	var recFinish = false
+	//	for !recFinish {
+	//		recFinish = true
+	//		for index, _ := range *LostNodes {
+				//var result bool
+				//result = AllNodes[LostNodes[index]].DetectNode(file, DataNodes, RddtNodes)
+	//		}
+	//	}
+	//}
 }

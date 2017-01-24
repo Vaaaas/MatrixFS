@@ -55,6 +55,7 @@ func main() {
 	http.HandleFunc("/greet", greetHandler)
 	http.HandleFunc("/upload", uploadHandler)
 	http.HandleFunc("/delete", deleteHandler)
+	http.HandleFunc("/restore", restoreHandler)
 
 	http.HandleFunc("/download", downloadHandler)
 
@@ -65,10 +66,12 @@ func main() {
 		for {
 			now := time.Now().UnixNano() / 1000000
 			for key, value := range AllNodes {
-				if now-value.Lasttime > 60000 {
+				glog.Infof("Now : %d, value.Lasttime : %d, delta : %d, delta-6000 : %d", now, value.Lasttime, now-value.Lasttime, now-value.Lasttime-6000)
+				if now-value.Lasttime > 6000 {
 					node := value
 					node.Status = false
 					AllNodes[key] = node
+					OnDeleted(&node)
 				} else {
 					node := value
 					node.Status = true
@@ -157,13 +160,20 @@ func nodeHandler(w http.ResponseWriter, r *http.Request) {
 			SysConfig.InitConfig(faultNum, rowNum)
 		}
 	}
+	data := struct {
+		Nodes        map[uint]NodeStruct.Node
+		SystemStatus bool
+	}{
+		Nodes:        AllNodes,
+		SystemStatus: SysConfig.SysConfig.Status,
+	}
 
-	glog.Infof("Length of AllNodes : %d", len(AllNodes))
+	glog.Infof("System Status : %s, Length of AllNodes : %d", strconv.FormatBool(SysConfig.SysConfig.Status), len(AllNodes))
 	t, err := template.ParseFiles("view/node.html")
 	if err != nil {
 		glog.Errorln(err)
 	}
-	t.Execute(w, AllNodes)
+	t.Execute(w, data)
 }
 
 func filePageHandler(w http.ResponseWriter, r *http.Request) {
@@ -172,10 +182,6 @@ func filePageHandler(w http.ResponseWriter, r *http.Request) {
 	if !SysConfig.SysConfigured() {
 		glog.Infoln("URL: " + r.URL.Path + "not configured, redirect to index.html")
 		http.Redirect(w, r, "/index", http.StatusFound)
-		return
-	} else if SysConfig.SysConfig.Status == false {
-		glog.Infoln("URL: " + r.URL.Path + "not configured, redirect to index.html")
-		http.Redirect(w, r, "/node", http.StatusFound)
 		return
 	} else {
 		glog.Infof("Length of AllFiles : %d", len(File.AllFiles))
@@ -300,17 +306,23 @@ func greetHandler(w http.ResponseWriter, r *http.Request) {
 
 	for _, value := range AllNodes {
 		if value.ID == node.ID {
+			glog.Info("Existed Node Found")
 			existed = true
 		}
 	}
 
+	glog.Infoln("Existence Status : " + strconv.FormatBool(existed))
+
 	if existed {
+		glog.Infof("Node [%d] already Existed", node.ID)
 		var volume = node.Volume
 		node = AllNodes[node.ID]
 		node.Volume = volume
 		node.Status = true
+		glog.Infof("Before Time : %d", node.Lasttime)
 		node.Lasttime = time.Now().UnixNano() / 1000000
 		AllNodes[node.ID] = node
+		glog.Infof("Refresh Time : %d", AllNodes[node.ID].Lasttime)
 	} else {
 		NodeStruct.IDCounter++
 		node.ID = NodeStruct.IDCounter
@@ -366,14 +378,14 @@ func SliceIndex(limit int, predicate func(i int) bool) int {
 
 func appendNode(node *NodeStruct.Node) bool {
 	if checkDataNodeNum() > 0 {
-		emptyToData(node)
+		emptyToData(node.ID)
 		index := SliceIndex(len(EmptyNodes), func(i int) bool {
 			return EmptyNodes[i] == node.ID
 		})
 		EmptyNodes = append(EmptyNodes[:index], EmptyNodes[index+1:]...)
 		return true
 	} else if checkRddtNodeNum() > 0 {
-		emptyToRddt(node)
+		emptyToRddt(node.ID)
 		index := SliceIndex(len(EmptyNodes), func(i int) bool {
 			return EmptyNodes[i] == node.ID
 		})
@@ -384,12 +396,16 @@ func appendNode(node *NodeStruct.Node) bool {
 	}
 }
 
-func emptyToData(node *NodeStruct.Node) {
-	DataNodes = append(DataNodes, node.ID)
+func emptyToData(nodeID uint) {
+	DataNodes = append(DataNodes, nodeID)
 }
 
-func emptyToRddt(node *NodeStruct.Node) {
-	RddtNodes = append(RddtNodes, node.ID)
+func emptyToRddt(nodeID uint) {
+	RddtNodes = append(RddtNodes, nodeID)
+}
+
+func nodeToLost(nodeID uint) {
+	LostNodes = append(LostNodes, nodeID)
 }
 
 //SendToNode will send one file to Nodes
@@ -581,4 +597,73 @@ func getOneFile(file *File.File, isData bool, nodeID uint, posiX, posiY, nodeCou
 	io.Copy(fileGet, res.Body)
 
 	glog.Info(res.Status)
+}
+
+func OnDeleted(node *NodeStruct.Node) {
+	glog.Info("OnDeleted")
+	var isEmpty = false
+	for _, value := range EmptyNodes {
+		if value == node.ID {
+			glog.Info("Empty Node Found")
+			isEmpty = true
+		}
+	}
+
+	if isEmpty {
+		//If Empty Node Lost, delete from all & Empty Slices
+		delete(AllNodes, node.ID)
+		index := SliceIndex(len(EmptyNodes), func(i int) bool {
+			return EmptyNodes[i] == node.ID
+		})
+		EmptyNodes = append(EmptyNodes[:index], EmptyNodes[index+1:]...)
+		glog.Info("Empty Node Deleted")
+	} else {
+		var lostExist = false
+		for _, value := range LostNodes {
+			if value == node.ID {
+				glog.Info("Lost Node Found")
+				lostExist = true
+			}
+		}
+		if !lostExist {
+			nodeToLost(node.ID)
+			SysConfig.SysConfig.Status = false
+			glog.Info("New Lost Node, SysConfigure turned to false")
+		}
+	}
+}
+
+func restoreHandler(w http.ResponseWriter, r *http.Request) {
+
+	if !SysConfig.SysConfigured() {
+		glog.Infoln("URL: " + r.URL.Path + " not configured, redirect to index.html")
+		http.Redirect(w, r, "/index", http.StatusFound)
+	} else if SysConfig.SysConfig.Status {
+		glog.Infoln("System is running, don't need to restore.")
+		http.Redirect(w, r, "/node", http.StatusFound)
+	} else if len(LostNodes) > SysConfig.SysConfig.FaultNum {
+		t, err := template.ParseFiles("view/info.html")
+		data := struct {
+			info string
+		}{
+			info: "Number of Lost Nodes More Than Fault Number.",
+		}
+		if err != nil {
+			glog.Errorln(err)
+		}
+		t.Execute(w, data)
+	} else if len(EmptyNodes) < len(LostNodes) {
+		t, err := template.ParseFiles("view/info.html")
+		data := struct {
+			info string
+		}{
+			info: "There is no enough Empty Nodes.",
+		}
+		if err != nil {
+			glog.Errorln(err)
+		}
+		t.Execute(w, data)
+	} else {
+		File.LostHandle(&LostNodes, &AllNodes, &DataNodes, &RddtNodes, &EmptyNodes)
+	}
 }
