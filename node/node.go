@@ -3,10 +3,8 @@ package main
 import (
 	"flag"
 	"os"
-	"github.com/golang/glog"
 	"net/http"
 	"net"
-	"github.com/Vaaaas/MatrixFS/NodeStruct"
 	"strconv"
 	"bytes"
 	"encoding/json"
@@ -15,9 +13,11 @@ import (
 	"strings"
 	"io"
 	"time"
+	"github.com/golang/glog"
+	"github.com/Vaaaas/MatrixFS/Tool"
 )
 
-var nodeInfo NodeStruct.Node
+var nodeInfo Tool.Node
 var MasterAdd *net.TCPAddr
 var NodeAdd *net.TCPAddr
 
@@ -47,7 +47,7 @@ func main() {
 	}
 
 	//Init ID Counter, IDCounter++ when create new Node
-	NodeStruct.IDCounter = 0
+	Tool.IDCounter = 0
 
 	//Init Master & Node Address
 	MasterAdd, err = net.ResolveTCPAddr("tcp4", master)
@@ -66,13 +66,13 @@ func main() {
 	}
 	dir = strings.Replace(dir, "\\", "/", -1)
 	//Get Free Space of Storage Path
-	volume := NodeStruct.DiskUsage(dir)
+	volume := Tool.DiskUsage(dir)
 	glog.Infof("Store Path: %s, Free space: %f", StorePath, volume)
 
 	InitStruct(&nodeInfo, NodeAdd.IP, NodeAdd.Port, volume)
 
 	go func() {
-		for{
+		for {
 			glog.Info("Connext Master!")
 			connectMaster(MasterAdd)
 			time.Sleep(4 * time.Second)
@@ -102,7 +102,6 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 			panic(err)
 		}
 		defer file.Close()
-		//fmt.Fprintf(w, "%v", handler.Header)
 		longSpl := strings.Split(handler.Filename, "/")
 
 		err = os.MkdirAll(StorePath + "/", 0766)
@@ -153,7 +152,7 @@ func connectMaster(master *net.TCPAddr) error {
 	}
 	dir = strings.Replace(dir, "\\", "/", -1)
 	//Get Free Space of Storage Path
-	volume := NodeStruct.DiskUsage(dir)
+	volume := Tool.DiskUsage(dir)
 	glog.Infof("Store Path: %s, Free space: %f", StorePath, volume)
 
 	nodeInfo.Volume = volume
@@ -175,7 +174,7 @@ func connectMaster(master *net.TCPAddr) error {
 	return nil
 }
 
-func InitStruct(nodeInfo *NodeStruct.Node, address net.IP, port int, volume float64) error {
+func InitStruct(nodeInfo *Tool.Node, address net.IP, port int, volume float64) error {
 	nodeInfo.Address = address
 	nodeInfo.Port = port
 	nodeInfo.Volume = volume

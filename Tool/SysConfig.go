@@ -1,9 +1,9 @@
-package SysConfig
+package Tool
 
 import (
-	"github.com/golang/glog"
 	"os"
 	"strconv"
+	"github.com/golang/glog"
 )
 
 //首字母大写为导出成员，可被包外引用

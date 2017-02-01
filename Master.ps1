@@ -4,7 +4,7 @@ Copy-Item css -Destination $mydoc\MatrixFS\Master\ -Recurse -force
 Copy-Item js -Destination $mydoc\MatrixFS\Master\ -Recurse -force
 Copy-Item view -Destination $mydoc\MatrixFS\Master\ -Recurse -force
 Copy-Item favicon.ico -Destination $mydoc\MatrixFS\Master\ -force
-go build -o $mydoc\MatrixFS\Master\master.exe matrix.go
+go build -o $mydoc\MatrixFS\Master\master.exe github.com/Vaaaas/MatrixFS/matrix
 Set-Location $mydoc\MatrixFS\Master\
 mkdir log
 $param="-log_dir=./log"
