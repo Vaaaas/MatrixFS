@@ -16,7 +16,7 @@ func main() {
 	defer glog.Flush()
 	//Init system config(Moved to indexPageHandler)
 	//SysConfig.InitConfig(fault, row)
-	glog.Info("Server start here")
+	glog.Info("Master 服务器启动")
 
 	//testFileHandle()
 	err := os.MkdirAll("./temp", 0766)
@@ -49,16 +49,12 @@ func main() {
 		for {
 			now := time.Now().UnixNano() / 1000000
 			for key, value := range Tool.AllNodes {
-				glog.Infof("Now : %d, value.Lasttime : %d, delta : %d, delta-6000 : %d", now, value.LastTime, now - value.LastTime, now - value.LastTime - 6000)
+				//glog.Infof("Now : %d, value.Lasttime : %d, delta : %d, delta-6000 : %d", now, value.LastTime, now - value.LastTime, now - value.LastTime - 6000)
 				if now - value.LastTime > 6000 {
 					node := value
 					node.Status = false
 					Tool.AllNodes[key] = node
 					OnDeleted(&node)
-				} else {
-					node := value
-					node.Status = true
-					Tool.AllNodes[key] = node
 				}
 			}
 			time.Sleep(4 * time.Second)
@@ -71,7 +67,7 @@ func main() {
 }
 
 func OnDeleted(node *Tool.Node) {
-	glog.Info("OnDeleted")
+	//glog.Info("OnDeleted")
 	var isEmpty = false
 	for _, value := range Tool.EmptyNodes {
 		if value == node.ID {
@@ -87,19 +83,20 @@ func OnDeleted(node *Tool.Node) {
 			return Tool.EmptyNodes[i] == node.ID
 		})
 		Tool.EmptyNodes = append(Tool.EmptyNodes[:index], Tool.EmptyNodes[index + 1:]...)
-		glog.Info("Empty Node Deleted")
+		glog.Info("已删除空节点")
 	} else {
 		var lostExist = false
 		for _, value := range Tool.LostNodes {
 			if value == node.ID {
-				glog.Info("Lost Node Found")
+				//glog.Info("该节点为已丢失节点 : %d", node.ID)
 				lostExist = true
 			}
 		}
 		if !lostExist {
 			Tool.AddToLost(node.ID)
 			Tool.SysConfig.Status = false
-			glog.Info("New Lost Node, SysConfigure turned to false")
+			glog.Infof("新的丢失节点, SysConfigure 变为 false, 丢失节点ID : %d", node.ID)
+
 		}
 	}
 }

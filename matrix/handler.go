@@ -10,6 +10,7 @@ import (
 	"github.com/golang/glog"
 	"html/template"
 	"io"
+	"io/ioutil"
 )
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {
@@ -109,7 +110,7 @@ func filePageHandler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/index", http.StatusFound)
 		return
 	} else {
-		glog.Infof("Length of AllFiles : %d", len(Tool.AllFiles))
+		//glog.Infof("Length of AllFiles : %d", len(Tool.AllFiles))
 		t, err := template.ParseFiles("view/file.html")
 		if err != nil {
 			glog.Errorln(err)
@@ -134,7 +135,6 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 			glog.Error(err)
 			panic(err)
 		}
-		defer file.Close()
 		//fmt.Fprintf(w, "%v", handler.Header)
 		if handler.Filename == "" {
 			http.Redirect(w, r, "/file", http.StatusFound)
@@ -146,9 +146,11 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 			glog.Error(err)
 			panic(err)
 		}
-		defer f.Close()
 		io.Copy(f, file)
+
 		file01 := fileHandle("temp/" + handler.Filename)
+		f.Close()
+		file.Close()
 		file01.DeleteAllTempFiles()
 		glog.Infof("File upload & init finished, redirect to file page : %s, Content-Type: %s", handler.Filename, r.Header.Get("Content-Type"))
 		http.Redirect(w, r, "/file", http.StatusFound)
@@ -229,25 +231,22 @@ func greetHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, value := range Tool.AllNodes {
-		if value.ID == node.ID {
-			glog.Info("Existed Node Found")
-			existed = true
-		}
+	if node.ID != 0 {
+		existed = true
 	}
 
-	glog.Infoln("Existence Status : " + strconv.FormatBool(existed))
+	//glog.Infoln("Existence Status : " + strconv.FormatBool(existed))
 
 	if existed {
-		glog.Infof("Node [%d] already Existed", node.ID)
+		//glog.Infof("Node [%d] already Existed", node.ID)
 		var volume = node.Volume
 		node = Tool.AllNodes[node.ID]
 		node.Volume = volume
-		node.Status = true
-		glog.Infof("Before Time : %d", node.LastTime)
+		//node.Status = true
+		//glog.Infof("Before Time : %d", node.LastTime)
 		node.LastTime = time.Now().UnixNano() / 1000000
 		Tool.AllNodes[node.ID] = node
-		glog.Infof("Refresh Time : %d", Tool.AllNodes[node.ID].LastTime)
+		//glog.Infof("Refresh Time : %d", Tool.AllNodes[node.ID].LastTime)
 	} else {
 		Tool.IDCounter++
 		node.ID = Tool.IDCounter
@@ -274,14 +273,15 @@ func restoreHandler(w http.ResponseWriter, r *http.Request) {
 		glog.Infoln("URL: " + r.URL.Path + " not configured, redirect to index.html")
 		http.Redirect(w, r, "/index", http.StatusFound)
 	} else if Tool.SysConfig.Status {
-		glog.Infoln("System is running, don't need to restore.")
+		glog.Infoln("系统正常运行，无需修复.")
 		http.Redirect(w, r, "/node", http.StatusFound)
 	} else if len(Tool.LostNodes) > Tool.SysConfig.FaultNum {
+		glog.Warningf("丢失节点数 : %d", len(Tool.LostNodes))
 		t, err := template.ParseFiles("view/info.html")
 		data := struct {
 			info string
 		}{
-			info: "Number of Lost Nodes More Than Fault Number.",
+			info: "丢失节点数超过可容错数.",
 		}
 		if err != nil {
 			glog.Errorln(err)
@@ -292,7 +292,7 @@ func restoreHandler(w http.ResponseWriter, r *http.Request) {
 		data := struct {
 			info string
 		}{
-			info: "There is no enough Empty Nodes.",
+			info: "没有足够的空节点用于恢复.",
 		}
 		if err != nil {
 			glog.Errorln(err)
@@ -300,14 +300,51 @@ func restoreHandler(w http.ResponseWriter, r *http.Request) {
 		t.Execute(w, data)
 	} else {
 		//Need to Collect All files to Master Server
+		glog.Infoln("将空节点转换至丢失节点")
+
 		for i := 0; i < len(Tool.LostNodes); i++ {
 			prevLostID := Tool.LostNodes[i]
 			empID := Tool.EmptyNodes[i]
+
+			url := "http://" + Tool.AllNodes[empID].Address.String() + ":" + strconv.Itoa(Tool.AllNodes[empID].Port) + "/resetid"
+			glog.Info("[Reset ID] URL " + url)
+
+			req, err := http.NewRequest("POST", url, nil)
+			if err != nil {
+				glog.Errorln(err)
+				panic(err)
+			}
+			req.Header.Set("NewID", strconv.Itoa((int)(prevLostID)))
+
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				glog.Errorln(err)
+				panic(err)
+			}
+
+			defer resp.Body.Close()
+			respbody, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				glog.Errorln(err)
+				panic(err)
+			}
+			glog.Info(resp.Status)
+			glog.Info(string(respbody))
+
+			glog.Infof("空节点 ID : %d, 丢失节点ID : %d", empID, prevLostID)
 			newNode := Tool.AllNodes[empID]
 			newNode.ID = prevLostID
+			newNode.Status = false
 			Tool.AllNodes[prevLostID] = newNode
+			glog.Infof("用于恢复的节点ID : %d", newNode.ID)
 		}
 		Tool.LostHandle()
+
+		for i := 0; i < len(Tool.LostNodes); i++ {
+			node := Tool.AllNodes[Tool.LostNodes[i]]
+			node.Status = true
+			Tool.AllNodes[Tool.LostNodes[i]] = node
+		}
 
 		//Delete Reset EmptyNodes
 		for i := 0; i < len(Tool.LostNodes); i++ {
@@ -316,6 +353,7 @@ func restoreHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		//Delete All LostNodes
 		Tool.LostNodes = []uint{}
+		Tool.SysConfig.Status = true
 		t, err := template.ParseFiles("view/info.html")
 		data := struct {
 			info string

@@ -1,9 +1,11 @@
 package Tool
 
 import (
+	"math"
 	"net"
 	"syscall"
 	"unsafe"
+
 	"github.com/golang/glog"
 )
 
@@ -28,7 +30,7 @@ type Node struct {
 }
 
 const (
-	B = 1
+	B  = 1
 	KB = 1024 * B
 	MB = 1024 * KB
 	GB = 1024 * MB
@@ -39,7 +41,7 @@ func NodeConfigured() bool {
 	return len(AllNodes) != 0
 }
 
-// disk usage of path/disk
+//DiskUsage of path/disk
 func DiskUsage(path string) float64 {
 	//Win:
 	h := syscall.MustLoadDLL("kernel32.dll")
@@ -64,14 +66,14 @@ func (node Node) AppendNode() bool {
 		index := GetFileIndexInAll(len(EmptyNodes), func(i int) bool {
 			return EmptyNodes[i] == node.ID
 		})
-		EmptyNodes = append(EmptyNodes[:index], EmptyNodes[index + 1:]...)
+		EmptyNodes = append(EmptyNodes[:index], EmptyNodes[index+1:]...)
 		return true
 	} else if CheckRddtNodeNum() > 0 {
 		EmptyToRddt(node.ID)
 		index := GetFileIndexInAll(len(EmptyNodes), func(i int) bool {
 			return EmptyNodes[i] == node.ID
 		})
-		EmptyNodes = append(EmptyNodes[:index], EmptyNodes[index + 1:]...)
+		EmptyNodes = append(EmptyNodes[:index], EmptyNodes[index+1:]...)
 		return true
 	} else {
 		return false
@@ -82,7 +84,7 @@ func AddToLost(nodeID uint) {
 	LostNodes = append(LostNodes, nodeID)
 }
 
-func (node Node) getIndexInDataNodes() (int) {
+func (node Node) getIndexInDataNodes() int {
 	for index, nodeID := range DataNodes {
 		if node.ID == nodeID {
 			glog.Infof("Index in All Data Nodes is : %d", index)
@@ -92,10 +94,10 @@ func (node Node) getIndexInDataNodes() (int) {
 	return 0
 }
 
-func (node Node) getIndexInRddtNodes() (int) {
+func (node Node) getIndexInRddtNodes() int {
 	for index, nodeID := range RddtNodes {
 		if node.ID == nodeID {
-			glog.Infof("Index in All DRddt Nodes is : %d", index)
+			glog.Infof("Index in All Rddt Nodes is : %d", index)
 			return index
 		}
 	}
@@ -103,28 +105,48 @@ func (node Node) getIndexInRddtNodes() (int) {
 }
 
 func (node Node) DetectNode(file File) bool {
+	glog.Infof("开始检测节点ID : %d, 文件名 : %s", node.ID, file.FileFullName)
 	if node.isDataNode() {
-		glog.Info("Detecting a [DATA] Node")
+		glog.Info("被检测节点为 [DATA] Node")
 		var allExist = false
 		for faultCount := 0; faultCount < SysConfig.FaultNum; faultCount++ {
-			if (allExist) {
-				break;
+			if allExist {
+				break
 			}
-			allExist = true;
+			allExist = true
 			for rowCount := 0; rowCount < SysConfig.RowNum; rowCount++ {
-				var result = file.DetectDataFile(node, faultCount, rowCount);
-				allExist = allExist && result;
+				var result = file.DetectDataFile(node, faultCount, rowCount)
+				allExist = allExist && result
 			}
 		}
-		//return allExist;
+		glog.Infof("数据节点（ID : %d, File Name : %s）恢复完成", node.ID, file.FileFullName)
+		return allExist
 	} else if node.isRddtNode() {
-		glog.Info("Detecting a [RDDT] Node")
-
+		glog.Info("被检测节点为 [RDDT] Node")
+		var allExist = false
+		var rddtNum = GetIndexInRddt(node.ID)
+		var nodeCount = rddtNum * SysConfig.RowNum % len(DataNodes)
+		var fCount = rddtNum * SysConfig.RowNum / len(DataNodes)
+		k := (int)((fCount + 2) / 2 * (int)(math.Pow(-1, (float64)(fCount+2))))
+		for rowCount := 0; rowCount < SysConfig.RowNum; rowCount++ {
+			allExist = true
+			var result = file.DetectRddtFile(node, k, nodeCount)
+			allExist = allExist && result
+			if nodeCount == len(DataNodes)-1 {
+				nodeCount = 0
+				fCount++
+				k = (int)((rowCount + 2) / 2 * (int)(math.Pow(-1, (float64)(rowCount+2))))
+			} else {
+				nodeCount++
+			}
+		}
+		glog.Infof("冗余节点（ID : %d, File Name : %s）恢复完成", node.ID, file.FileFullName)
+		return allExist
 	}
 	return false
 }
 
-func (node Node) isDataNode() bool{
+func (node Node) isDataNode() bool {
 	for _, nodeID := range DataNodes {
 		if node.ID == nodeID {
 			return true
@@ -133,7 +155,7 @@ func (node Node) isDataNode() bool{
 	return false
 }
 
-func (node Node) isRddtNode() bool{
+func (node Node) isRddtNode() bool {
 	for _, nodeID := range RddtNodes {
 		if node.ID == nodeID {
 			return true

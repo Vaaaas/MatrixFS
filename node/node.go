@@ -1,20 +1,21 @@
 package main
 
 import (
-	"flag"
-	"os"
-	"net/http"
-	"net"
-	"strconv"
 	"bytes"
 	"encoding/json"
-	"path/filepath"
-	"log"
-	"strings"
+	"flag"
 	"io"
+	"log"
+	"net"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
-	"github.com/golang/glog"
+
 	"github.com/Vaaaas/MatrixFS/Tool"
+	"github.com/golang/glog"
 )
 
 var nodeInfo Tool.Node
@@ -34,7 +35,6 @@ func main() {
 
 	//Trigger on exit, write log into files
 	defer glog.Flush()
-	glog.Info("Node start here")
 	err := os.MkdirAll(flag.Lookup("log_dir").Value.String(), 0766)
 	if err != nil {
 		glog.Errorln(err)
@@ -67,13 +67,16 @@ func main() {
 	dir = strings.Replace(dir, "\\", "/", -1)
 	//Get Free Space of Storage Path
 	volume := Tool.DiskUsage(dir)
+	glog.Infof("Node start here : %d", NodeAdd.Port)
+
 	glog.Infof("Store Path: %s, Free space: %f", StorePath, volume)
 
+	nodeInfo.ID = 0
 	InitStruct(&nodeInfo, NodeAdd.IP, NodeAdd.Port, volume)
 
 	go func() {
 		for {
-			glog.Info("Connext Master!")
+			//glog.Info("Connext Master!")
 			connectMaster(MasterAdd)
 			time.Sleep(4 * time.Second)
 		}
@@ -81,6 +84,7 @@ func main() {
 
 	http.HandleFunc("/upload", uploadHandler)
 	http.HandleFunc("/delete", deleteHandler)
+	http.HandleFunc("/resetid", resetIDHandler)
 
 	http.Handle("/download/", http.StripPrefix("/download/", http.FileServer(http.Dir(StorePath))))
 
@@ -145,6 +149,27 @@ func deleteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func resetIDHandler(w http.ResponseWriter, r *http.Request) {
+	glog.Infoln("[ResetID] method: ", r.Method)
+	if r.Method == "POST" {
+		glog.Infoln("[/ResetID] " + r.URL.Path)
+
+		newID := r.Header.Get("NewID")
+
+		tmpID, err := strconv.Atoi(newID)
+
+		glog.Infof("NewID : %d, New Status : %t", tmpID, false)
+
+		if err != nil {
+			glog.Error(err)
+		}
+		nodeInfo.ID = (uint)(tmpID)
+		nodeInfo.Status = false
+	} else {
+		glog.Infoln("[/ResetID] else" + r.URL.Path)
+	}
+}
+
 func connectMaster(master *net.TCPAddr) error {
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
@@ -153,10 +178,10 @@ func connectMaster(master *net.TCPAddr) error {
 	dir = strings.Replace(dir, "\\", "/", -1)
 	//Get Free Space of Storage Path
 	volume := Tool.DiskUsage(dir)
-	glog.Infof("Store Path: %s, Free space: %f", StorePath, volume)
+	//glog.Infof("Store Path: %s, Free space: %f", StorePath, volume)
 
 	nodeInfo.Volume = volume
-	glog.Infof("Connect to Master IP : %s", master.String())
+	//glog.Infof("Connect to Master IP : %s", master.String())
 
 	b := new(bytes.Buffer)
 	json.NewEncoder(b).Encode(nodeInfo)
@@ -170,7 +195,7 @@ func connectMaster(master *net.TCPAddr) error {
 		glog.Error(err)
 	}
 
-	glog.Info("Connect Finished")
+	//glog.Info("Connect Finished")
 	return nil
 }
 

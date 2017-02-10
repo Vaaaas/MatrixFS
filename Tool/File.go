@@ -15,7 +15,6 @@ import (
 	"github.com/golang/glog"
 )
 
-//todo : remove to map
 var AllFiles = []File{}
 
 func FindFileInAll(name string) *File {
@@ -27,7 +26,7 @@ func FindFileInAll(name string) *File {
 	return nil
 }
 
-//使用时需要通过File(包名).File(结构体名)来访问
+//File 使用时需要通过File(包名).File(结构体名)来访问
 type File struct {
 	FileFullName string
 	Size         int64
@@ -41,6 +40,16 @@ func FileExisted(path string) bool {
 	return !os.IsNotExist(err)
 }
 
+func StructSliceFileName(storagePosition string, isDataSlice bool, nodeNum int, fileName string, varNum1 int, varNum2 int) string {
+	var dataOrRddt string
+	if isDataSlice {
+		dataOrRddt = "Data."
+	} else {
+		dataOrRddt = "Rddt."
+	}
+	return "./" + storagePosition + "/" + dataOrRddt + strconv.Itoa(nodeNum) + "/" + fileName + "." + strconv.Itoa(varNum1) + strconv.Itoa(varNum2)
+}
+
 func (file *File) Init(source string) error {
 	fileInfo, err := os.Stat(source)
 	if err != nil {
@@ -50,25 +59,25 @@ func (file *File) Init(source string) error {
 	if fileInfo.IsDir() {
 		glog.Error("初始化失败：该路径指向的是文件夹")
 		return errors.New("初始化失败：该路径指向的是文件夹")
-	} else {
-		file.FileFullName = fileInfo.Name()
-		file.Size = fileInfo.Size()
-		if (file.Size % (int64)(SysConfig.SliceNum)) != 0 {
-			file.FillLast = true
-			file.SliceSize = file.Size/(int64)(SysConfig.SliceNum) + 1
-			file.FillSize = file.SliceSize*(int64)(SysConfig.SliceNum) - file.Size
-		} else {
-			file.FillLast = false
-			file.SliceSize = file.Size / (int64)(SysConfig.SliceNum)
-			file.FillSize = 0
-		}
-		glog.Infof("%+v ", file)
-		AllFiles = append(AllFiles, *file)
-
-		glog.Infof("All Files: %+v  ,len: %d", AllFiles[len(AllFiles)-1], len(AllFiles))
-
-		return nil
 	}
+	file.FileFullName = fileInfo.Name()
+	file.Size = fileInfo.Size()
+	if (file.Size % (int64)(SysConfig.SliceNum)) != 0 {
+		file.FillLast = true
+		file.SliceSize = file.Size/(int64)(SysConfig.SliceNum) + 1
+		file.FillSize = file.SliceSize*(int64)(SysConfig.SliceNum) - file.Size
+	} else {
+		file.FillLast = false
+		file.SliceSize = file.Size / (int64)(SysConfig.SliceNum)
+		file.FillSize = 0
+	}
+	glog.Infof("%+v ", file)
+	AllFiles = append(AllFiles, *file)
+
+	glog.Infof("All Files: %+v  ,len: %d", AllFiles[len(AllFiles)-1], len(AllFiles))
+
+	return nil
+
 }
 
 func (file File) SliceFileName() (string, string) {
@@ -87,14 +96,12 @@ func (file File) SliceFileName() (string, string) {
 			}
 			exten := slices[len(slices)-1]
 			return string(name), exten
-		} else {
-			glog.Error("分割文件名失败：该文件不含扩展名")
-			return "", ""
 		}
-	} else {
-		glog.Error("分割文件名失败：未定义文件名")
+		glog.Error("分割文件名失败：该文件不含扩展名")
 		return "", ""
 	}
+	glog.Error("分割文件名失败：未定义文件名")
+	return "", ""
 }
 
 func GetFileIndexInAll(limit int, predicate func(i int) bool) int {
@@ -114,11 +121,7 @@ func (file File) InitDataFiles() error {
 		glog.Error("分割时打开源文件失败")
 		panic(err)
 	}
-	defer func() {
-		if err := sourceFile.Close(); err != nil {
-			panic(err)
-		}
-	}()
+	defer sourceFile.Close()
 
 	for i := 0; i < SysConfig.DataNum; i++ {
 		for j := 0; j < SysConfig.RowNum; j++ {
@@ -128,20 +131,18 @@ func (file File) InitDataFiles() error {
 			}
 		}
 	}
+	sourceFile.Close()
 	return nil
 }
 
 func (file File) initOneDataFile(col int, row int, sourceFile *os.File) error {
-	outFile, err := os.Create("./temp/Data." + strconv.Itoa(col) + "/" + file.FileFullName + "." + strconv.Itoa(col) + strconv.Itoa(row))
+	fileName := StructSliceFileName("temp", true, col, file.FileFullName, col, row)
+	outFile, err := os.OpenFile(fileName, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		glog.Error("新建数据分块文件失败 " + "./temp/Data." + strconv.Itoa(col) + "/" + file.FileFullName + "." + strconv.Itoa(col) + strconv.Itoa(row))
 		panic(err)
 	}
-	defer func() {
-		if err := outFile.Close(); err != nil {
-			panic(err)
-		}
-	}()
+	defer outFile.Close()
 
 	buffer := make([]byte, file.SliceSize)
 	n, err := sourceFile.Read(buffer)
@@ -211,9 +212,9 @@ func postOneFile(file File, isData bool, nodeID uint, posiX, posiY, nodeCounter 
 	bodyWriter := multipart.NewWriter(bodyBuf)
 	var filePath string
 	if isData {
-		filePath = "./temp/Data." + strconv.Itoa(posiX) + "/" + file.FileFullName + "." + strconv.Itoa((int)(posiX)) + strconv.Itoa(posiY)
+		filePath = StructSliceFileName("temp", true, posiX, file.FileFullName, posiX, posiY)
 	} else {
-		filePath = "./temp/Rddt." + strconv.Itoa(nodeCounter) + "/" + file.FileFullName + "." + strconv.Itoa((int)(posiX)) + strconv.Itoa(posiY)
+		filePath = StructSliceFileName("temp", false, nodeCounter, file.FileFullName, posiX, posiY)
 	}
 
 	fileWriter, err := bodyWriter.CreateFormFile("uploadfile", filePath)
@@ -228,6 +229,7 @@ func postOneFile(file File, isData bool, nodeID uint, posiX, posiY, nodeCounter 
 		glog.Errorln("error opening file + %s", err)
 		panic(err)
 	}
+	defer fh.Close()
 
 	//iocopy
 	_, err = io.Copy(fileWriter, fh)
@@ -246,13 +248,13 @@ func postOneFile(file File, isData bool, nodeID uint, posiX, posiY, nodeCounter 
 		panic(err)
 	}
 	defer resp.Body.Close()
-	resp_body, err := ioutil.ReadAll(resp.Body)
+	respbody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		glog.Errorln(err)
 		panic(err)
 	}
 	glog.Info(resp.Status)
-	glog.Info(string(resp_body))
+	glog.Info(string(respbody))
 }
 
 func (file File) GetFile(targetFolder string) error {
@@ -268,27 +270,22 @@ func (file File) GetFile(targetFolder string) error {
 		glog.Error("无法新建目标文件")
 		panic(err)
 	}
-	defer func() {
-		if err := target.Close(); err != nil {
-			panic(err)
-		}
-	}()
+	defer target.Close()
 
 	buffer := make([]byte, file.SliceSize)
 	for i := 0; (int64)(i) < realSliceNum; i++ {
 		dataPosition := i / SysConfig.RowNum
 		rowPosition := i % SysConfig.RowNum
 
-		dataFile, err := os.Open("./temp/Data." + strconv.Itoa(dataPosition) + "/" + file.FileFullName + "." + strconv.Itoa(dataPosition) + strconv.Itoa(rowPosition))
+		filePath := StructSliceFileName("temp", true, dataPosition, file.FileFullName, dataPosition, rowPosition)
+
+		dataFile, err := os.Open(filePath)
 		if err != nil {
-			glog.Error("读取数据分块文件失败 " + "./temp/Data." + strconv.Itoa(dataPosition) + "/" + file.FileFullName + "." + strconv.Itoa(dataPosition) + strconv.Itoa(rowPosition))
+			glog.Error("读取数据分块文件失败 " + filePath)
 			panic(err)
 		}
-		defer func() {
-			if err := dataFile.Close(); err != nil {
-				panic(err)
-			}
-		}()
+		defer dataFile.Close()
+
 		n, err := dataFile.Read(buffer)
 		if err != nil && err != io.EOF {
 			glog.Error("buffer读取文件失败 " + strconv.Itoa(i))
@@ -332,16 +329,14 @@ func (file File) InitRddtFiles() error {
 }
 
 func (file File) initOneRddtFile(startFolderNum, k, rddtNum int) error {
-	rddtFilePath, err := os.Create("./temp/Rddt." + strconv.Itoa(rddtNum) + "/" + file.FileFullName + "." + strconv.Itoa(k) + strconv.Itoa(startFolderNum))
+	filePath := StructSliceFileName("temp", false, rddtNum, file.FileFullName, k, startFolderNum)
+	rddtFileObj, err := os.OpenFile(filePath, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, os.ModePerm)
+
 	if err != nil {
-		glog.Error("新建冗余分块文件失败 " + "./temp/Rddt." + strconv.Itoa(rddtNum) + "/" + file.FileFullName + "." + strconv.Itoa(k) + strconv.Itoa(startFolderNum))
+		glog.Error("新建冗余分块文件失败 " + filePath)
 		panic(err)
 	}
-	defer func() {
-		if err := rddtFilePath.Close(); err != nil {
-			panic(err)
-		}
-	}()
+	defer rddtFileObj.Close()
 
 	buffer := make([]byte, file.SliceSize)
 
@@ -353,16 +348,14 @@ func (file File) initOneRddtFile(startFolderNum, k, rddtNum int) error {
 			folderPosi = SysConfig.DataNum + folderPosi
 		}
 
-		sourceFile, err := os.Open("./temp/Data." + strconv.Itoa(folderPosi) + "/" + file.FileFullName + "." + strconv.Itoa(folderPosi) + strconv.Itoa(i))
+		filePath := StructSliceFileName("temp", true, folderPosi, file.FileFullName, folderPosi, i)
+		sourceFile, err := os.Open(filePath)
 		if err != nil {
-			glog.Error("生成冗余文件 " + "./temp/Rddt." + strconv.Itoa(rddtNum) + "/" + file.FileFullName + "." + strconv.Itoa(k) + strconv.Itoa(startFolderNum) + " 时打开源文件失败 " + "./temp/Data." + strconv.Itoa(folderPosi) + "/" + file.FileFullName + "." + strconv.Itoa(folderPosi) + strconv.Itoa(i))
+			glog.Error("生成冗余文件 " + filePath)
 			panic(err)
 		}
-		defer func() {
-			if err := sourceFile.Close(); err != nil {
-				panic(err)
-			}
-		}()
+		defer sourceFile.Close()
+
 		if i == 0 {
 			_, err = sourceFile.Read(buffer)
 			if err != nil && err != io.EOF {
@@ -381,8 +374,8 @@ func (file File) initOneRddtFile(startFolderNum, k, rddtNum int) error {
 			}
 		}
 		if i == SysConfig.RowNum-1 {
-			if _, err := rddtFilePath.Write(buffer[:file.SliceSize]); err != nil {
-				glog.Error("写入冗余分块文件失败 " + "./temp/Rddt." + strconv.Itoa(rddtNum) + "/" + file.FileFullName + "." + strconv.Itoa(k) + strconv.Itoa(startFolderNum))
+			if _, err := rddtFileObj.Write(buffer[:file.SliceSize]); err != nil {
+				glog.Error("写入冗余分块文件失败 " + filePath)
 				panic(err)
 			}
 		}
@@ -447,19 +440,19 @@ func deleteOneFile(file File, isData bool, nodeID uint, posiX, posiY int) {
 	}
 
 	defer resp.Body.Close()
-	resp_body, err := ioutil.ReadAll(resp.Body)
+	respbody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		glog.Errorln(err)
 		panic(err)
 	}
 	glog.Info(resp.Status)
-	glog.Info(string(resp_body))
+	glog.Info(string(respbody))
 }
 
 func (file File) DeleteAllTempFiles() error {
 	file.deleteDataFiles()
 	file.deleteRddtFiles()
-	if FileExisted("temp/" + file.FileFullName) {
+	if !FileExisted("temp/" + file.FileFullName) {
 		glog.Warningf("[File to Delete NOT EXIST] temp/" + file.FileFullName)
 	} else {
 		err := os.Remove("temp/" + file.FileFullName)
@@ -475,7 +468,7 @@ func (file File) DeleteAllTempFiles() error {
 func (file File) deleteDataFiles() error {
 	for i := 0; i < SysConfig.DataNum; i++ {
 		for j := 0; j < SysConfig.SliceNum/SysConfig.DataNum; j++ {
-			if FileExisted("temp/Data." + strconv.Itoa(i) + "/" + file.FileFullName + "." + strconv.Itoa(i) + strconv.Itoa(j)) {
+			if !FileExisted("temp/Data." + strconv.Itoa(i) + "/" + file.FileFullName + "." + strconv.Itoa(i) + strconv.Itoa(j)) {
 				glog.Warningf("[File to Delete NOT EXIST] temp/Data.%d/%s.%d%d ", i, file.FileFullName, i, j)
 			} else {
 				err := os.Remove("temp/Data." + strconv.Itoa(i) + "/" + file.FileFullName + "." + strconv.Itoa(i) + strconv.Itoa(j))
@@ -498,7 +491,7 @@ func (file File) deleteRddtFiles() error {
 	for i := 0; i < SysConfig.FaultNum; i++ {
 		k := (int)((i + 2) / 2 * (int)(math.Pow(-1, (float64)(i+2))))
 		for fileCounter < SysConfig.DataNum {
-			if FileExisted("temp/Rddt." + strconv.Itoa(nodeCounter) + "/" + file.FileFullName + "." + strconv.Itoa(k) + strconv.Itoa(fileCounter)) {
+			if !FileExisted("temp/Rddt." + strconv.Itoa(nodeCounter) + "/" + file.FileFullName + "." + strconv.Itoa(k) + strconv.Itoa(fileCounter)) {
 				glog.Warningf("[File to Delete NOT EXIST] temp/Rddt.%d/%s.%d%d ", nodeCounter, file.FileFullName, k, fileCounter)
 			} else {
 				err := os.Remove("temp/Rddt." + strconv.Itoa(nodeCounter) + "/" + file.FileFullName + "." + strconv.Itoa(k) + strconv.Itoa(fileCounter))
@@ -529,7 +522,10 @@ func (file File) deleteRddtFiles() error {
 func (file File) CollectFiles() {
 	for i := 0; i < SysConfig.DataNum; i++ {
 		for j := 0; j < SysConfig.RowNum; j++ {
-			getOneFile(file, true, DataNodes[i], i, j, 0)
+			glog.Infof("Collect Files Data Node Status : %t, ID : %d", AllNodes[DataNodes[i]].Status, DataNodes[i])
+			if AllNodes[DataNodes[i]].Status == true {
+				getOneFile(file, true, DataNodes[i], i, j, 0)
+			}
 		}
 	}
 
@@ -539,8 +535,10 @@ func (file File) CollectFiles() {
 	for xx := 0; xx < SysConfig.FaultNum; xx++ {
 		k := (int)((xx + 2) / 2 * (int)(math.Pow(-1, (float64)(xx+2))))
 		for fileCounter < SysConfig.DataNum {
-			glog.Infof("Rddt Node Num : %d \t k : %d \t fileCounter : %d \t nodeCounter : %d\n", nodeCounter, k, fileCounter, nodeCounter)
-			getOneFile(file, false, RddtNodes[nodeCounter], k, fileCounter, nodeCounter)
+			glog.Infof("从节点获取冗余文件 Rddt Node Num : %d \t k : %d \t fileCounter : %d \t nodeCounter : %d\n", nodeCounter, k, fileCounter, nodeCounter)
+			if AllNodes[RddtNodes[nodeCounter]].Status == true {
+				getOneFile(file, false, RddtNodes[nodeCounter], k, fileCounter, nodeCounter)
+			}
 			fileCounter++
 			rddtFileCounter++
 			if rddtFileCounter%(SysConfig.SliceNum/SysConfig.DataNum) == 0 {
@@ -560,38 +558,44 @@ func getOneFile(file File, isData bool, nodeID uint, posiX, posiY, nodeCounter i
 	var filePath string
 	var fileName = file.FileFullName + "." + strconv.Itoa((int)(posiX)) + strconv.Itoa(posiY)
 	if isData {
-		filePath = "./temp/Data." + strconv.Itoa(posiX) + "/" + fileName
+		filePath = StructSliceFileName("temp", true, posiX, file.FileFullName, posiX, posiY)
 	} else {
-		filePath = "./temp/Rddt." + strconv.Itoa(nodeCounter) + "/" + fileName
+		filePath = StructSliceFileName("temp", false, nodeCounter, file.FileFullName, posiX, posiY)
 	}
 
+	glog.Infof("从节点收集文件 filePath : %s, fileName : %s", filePath, fileName)
+
 	url := "http://" + AllNodes[nodeID].Address.String() + ":" + strconv.Itoa(AllNodes[nodeID].Port) + "/download/" + fileName
+	glog.Infof("获取文件的URL : %s", url)
 	res, _ := http.Get(url)
 	fileGet, _ := os.Create(filePath)
+	defer fileGet.Close()
 	io.Copy(fileGet, res.Body)
-
 	glog.Info(res.Status)
 }
 
 func LostHandle() {
+	glog.Infoln("开始执行 Tool.LostHandle() ")
 	for _, file := range AllFiles {
-		go func() {
-			// Collect Distributed Files
-			file.CollectFiles()
-			var recFinish = false
-			for !recFinish {
-				recFinish = true
-				//todo : Attention to this expression
-				for index := range LostNodes {
-					var result bool
-					result = AllNodes[LostNodes[index]].DetectNode(file)
-					recFinish = recFinish && result
-				}
+		// go func() {
+		glog.Infof("开始恢复文件 : %s", file.FileFullName)
+		// Collect Distributed Files
+		file.CollectFiles()
+		var recFinish = false
+		for !recFinish {
+			recFinish = true
+			//todo : Attention to this expression
+			for index := range LostNodes {
+				var result bool
+				glog.Infof("需要检测节点 ID : %d", LostNodes[index])
+				result = AllNodes[LostNodes[index]].DetectNode(file)
+				recFinish = recFinish && result
 			}
-			file.InitRddtFiles()
-			file.GetFile("temp/")
-			file.SendToNode()
-		}()
+		}
+		file.InitRddtFiles()
+		file.GetFile("temp/")
+		file.SendToNode()
+		// }()
 	}
 	//todo : Clear All Lost Nodes
 
@@ -603,7 +607,7 @@ func (file File) DetectDataFile(node Node, faultCount, targetRow int) bool {
 	var startNodeNum = (node.getIndexInDataNodes() - targetRow*k + len(DataNodes)) % len(DataNodes)
 	var rddtNodeNum = (faultCount*len(DataNodes) + startNodeNum) / SysConfig.RowNum
 	glog.Info("Detecting Data File : " + "temp/Data." + strconv.Itoa(NodeDataNum) + "/" + file.FileFullName + "." + strconv.Itoa(NodeDataNum) + strconv.Itoa(targetRow))
-	if FileExisted("temp/Data." + strconv.Itoa(NodeDataNum) + "/" + file.FileFullName + "." + strconv.Itoa(NodeDataNum) + strconv.Itoa(targetRow)) {
+	if !FileExisted("temp/Data." + strconv.Itoa(NodeDataNum) + "/" + file.FileFullName + "." + strconv.Itoa(NodeDataNum) + strconv.Itoa(targetRow)) {
 		if file.DetectRddtFile(AllNodes[RddtNodes[rddtNodeNum]], k, startNodeNum) {
 			if file.DetectKLine(NodeDataNum, targetRow, rddtNodeNum, k, false) {
 				file.RestoreDataFile(NodeDataNum, rddtNodeNum, k, targetRow)
@@ -626,9 +630,8 @@ func (file File) DetectRddtFile(node Node, k, dataNodeNum int) bool {
 	if file.DetectKLine(dataNodeNum, 0, node.getIndexInRddtNodes(), k, true) {
 		file.initOneRddtFile(dataNodeNum, k, node.getIndexInRddtNodes())
 		return true
-	} else {
-		return false
 	}
+	return false
 }
 
 func (file File) DetectKLine(dataNodeNum, targetRow, rddtNodeNum, k int, isForRddt bool) bool {
@@ -654,19 +657,18 @@ func (file File) DetectKLine(dataNodeNum, targetRow, rddtNodeNum, k int, isForRd
 func (file File) RestoreDataFile(dataNodeNum, rddtNodeNum, k, targetRow int) {
 	var startIndex = (dataNodeNum - k*targetRow + len(DataNodes)) % len(DataNodes)
 	buffer := make([]byte, file.SliceSize)
-	rddtFile, err := os.Open("./temp/Rddt." + strconv.Itoa(rddtNodeNum) + "/" + file.FileFullName + "." + strconv.Itoa(k) + strconv.Itoa(startIndex))
+	filePath := StructSliceFileName("temp", false, rddtNodeNum, file.FileFullName, k, startIndex)
+
+	rddtFile, err := os.Open(filePath)
 	if err != nil {
-		glog.Error("打开源文件失败 " + "./temp/Rddt." + strconv.Itoa(rddtNodeNum) + "/" + file.FileFullName + "." + strconv.Itoa(k) + strconv.Itoa(startIndex))
+		glog.Error("打开Rddt源文件失败 " + filePath)
 		panic(err)
 	}
-	defer func() {
-		if err := rddtFile.Close(); err != nil {
-			panic(err)
-		}
-	}()
+	defer rddtFile.Close()
+
 	_, err = rddtFile.Read(buffer)
 	if err != nil && err != io.EOF {
-		glog.Error("RDDT 读取文件失败")
+		glog.Error("RDDT 读取文件失败" + filePath)
 		panic(err)
 	}
 
@@ -674,29 +676,34 @@ func (file File) RestoreDataFile(dataNodeNum, rddtNodeNum, k, targetRow int) {
 		if targetRow == rowCount {
 			continue
 		}
-		tempBytes := make([]byte, file.SliceSize)
+
 		dataPosi := (startIndex + rowCount*k + len(DataNodes)) % len(DataNodes)
-		dataFile, err := os.Open("temp/Data." + strconv.Itoa(dataPosi) + "/" + file.FileFullName + "." + strconv.Itoa(dataPosi) + strconv.Itoa(rowCount))
+		filePath := StructSliceFileName("temp", true, dataPosi, file.FileFullName, dataPosi, rowCount)
+		tempBytes := make([]byte, file.SliceSize)
+
+		dataFile, err := os.Open(filePath)
 		_, err = dataFile.Read(tempBytes)
 		if err != nil && err != io.EOF {
-			glog.Error("tempBuffer读取 Data 文件失败")
+			glog.Error("tempBuffer 读取 Data 文件失败" + filePath)
 			panic(err)
 		}
+		defer dataFile.Close()
+
+		glog.Infof("恢复中 len(buffer) : %d, len(tempBuffer) : %d, slicesize : %d", len(buffer), len(tempBytes), file.SliceSize)
+
 		for byteCounter := 0; byteCounter < len(buffer); byteCounter++ {
 			buffer[byteCounter] = buffer[byteCounter] ^ tempBytes[byteCounter]
 		}
 	}
 
-	targetFilePath, err := os.Create("./temp/Data." + strconv.Itoa(dataNodeNum) + "/" + file.FileFullName + "." + strconv.Itoa(dataNodeNum) + strconv.Itoa(targetRow))
+	filePath = StructSliceFileName("temp", true, dataNodeNum, file.FileFullName, dataNodeNum, targetRow)
+
+	targetFilePath, err := os.OpenFile(filePath, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, os.ModePerm)
 	if err != nil {
-		glog.Error("新建恢复数据冗余分块文件失败 " + "./temp/Data." + strconv.Itoa(dataNodeNum) + "/" + file.FileFullName + "." + strconv.Itoa(dataNodeNum) + strconv.Itoa(targetRow))
+		glog.Error("新建恢复数据冗余分块文件失败 " + filePath)
 		panic(err)
 	}
-	defer func() {
-		if err := targetFilePath.Close(); err != nil {
-			panic(err)
-		}
-	}()
+	defer targetFilePath.Close()
 
 	if _, err := targetFilePath.Write(buffer[:file.SliceSize]); err != nil {
 		glog.Error("写入冗余分块文件失败 " + "./temp/Data." + strconv.Itoa(dataNodeNum) + "/" + file.FileFullName + "." + strconv.Itoa(dataNodeNum) + strconv.Itoa(targetRow))

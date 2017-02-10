@@ -3,10 +3,11 @@ package Tool
 import (
 	"os"
 	"strconv"
+
 	"github.com/golang/glog"
 )
 
-//首字母大写为导出成员，可被包外引用
+//SysConfig 首字母大写为导出成员，可被包外引用
 var SysConfig struct {
 	FaultNum int
 	RowNum   int
@@ -14,25 +15,25 @@ var SysConfig struct {
 	DataNum  int
 	RddtNum  int
 
-	Status   bool
+	Status bool
 }
 
 func SysConfigured() bool {
 	return SysConfig.FaultNum != 0 && SysConfig.RowNum != 0
 }
 
-//初始化容错数和行数配置
+//InitConfig 初始化容错数和行数配置
 func InitConfig(fault, row int) {
-	if (fault <= 1 || row <= 1) {
+	if fault <= 1 || row <= 1 {
 		glog.Error("行数和容错数都应大于1")
 		panic("行数和容错数都应大于1")
 	} else {
 		SysConfig.FaultNum = fault
 		SysConfig.RowNum = row
-		SysConfig.DataNum = SysConfig.RowNum * SysConfig.FaultNum - SysConfig.FaultNum + 1
+		SysConfig.DataNum = SysConfig.RowNum*SysConfig.FaultNum - SysConfig.FaultNum + 1
 		SysConfig.SliceNum = SysConfig.DataNum * SysConfig.RowNum
-		if (fault * SysConfig.DataNum) % row != 0 {
-			SysConfig.RddtNum = (fault * SysConfig.DataNum) / row + 1
+		if (fault*SysConfig.DataNum)%row != 0 {
+			SysConfig.RddtNum = (fault*SysConfig.DataNum)/row + 1
 
 		} else {
 			SysConfig.RddtNum = (fault * SysConfig.DataNum) / row
@@ -57,8 +58,8 @@ func initTempFolders(fault, dataNum, row int) error {
 		glog.Error(err)
 		return err
 	}
-	if (fault * dataNum) % row != 0 {
-		initRddtFolders((fault * dataNum) / row + 1)
+	if (fault*dataNum)%row != 0 {
+		initRddtFolders((fault*dataNum)/row + 1)
 
 	} else {
 		initRddtFolders((fault * dataNum) / row)
@@ -69,7 +70,7 @@ func initTempFolders(fault, dataNum, row int) error {
 
 func initDataFolders(dataNum int) error {
 	for i := 0; i < dataNum; i++ {
-		err := os.MkdirAll("./temp/DATA." + strconv.Itoa(i), 0766)
+		err := os.MkdirAll("./temp/DATA."+strconv.Itoa(i), 0766)
 		if err != nil {
 			return err
 		}
@@ -80,7 +81,7 @@ func initDataFolders(dataNum int) error {
 
 func initRddtFolders(rddtNum int) error {
 	for i := 0; i < rddtNum; i++ {
-		err := os.MkdirAll("./temp/RDDT." + strconv.Itoa(i), 0766)
+		err := os.MkdirAll("./temp/RDDT."+strconv.Itoa(i), 0766)
 		if err != nil {
 			return err
 		}
