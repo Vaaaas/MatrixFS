@@ -179,6 +179,9 @@ func (file File) initOneDataFile(col int, row int, sourceFile *os.File) error {
 //SendToNode will send one file to Nodes
 func (file File) SendToNode() {
 	for i := 0; i < SysConfig.DataNum; i++ {
+		if SysConfig.Status==false && AllNodes[DataNodes[i]].Status==false{
+			continue
+		}
 		for j := 0; j < SysConfig.RowNum; j++ {
 			postOneFile(file, true, DataNodes[i], i, j, 0)
 		}
@@ -191,7 +194,9 @@ func (file File) SendToNode() {
 		k := (int)((xx + 2) / 2 * (int)(math.Pow(-1, (float64)(xx+2))))
 		for fileCounter < SysConfig.DataNum {
 			glog.Infof("Rddt Node Num : %d \t k : %d \t fileCounter : %d \t nodeCounter : %d\n", nodeCounter, k, fileCounter, nodeCounter)
-			postOneFile(file, false, RddtNodes[nodeCounter], k, fileCounter, nodeCounter)
+			if SysConfig.Status==true && AllNodes[RddtNodes[nodeCounter]].Status==true {
+				postOneFile(file, false, RddtNodes[nodeCounter], k, fileCounter, nodeCounter)
+			}
 			fileCounter++
 			rddtFileCounter++
 			if rddtFileCounter%(SysConfig.SliceNum/SysConfig.DataNum) == 0 {
@@ -581,7 +586,14 @@ func LostHandle() {
 		glog.Infof("开始恢复文件 : %s", file.FileFullName)
 		// Collect Distributed Files
 		file.CollectFiles()
-		var recFinish = false
+		var recFinish = true
+		//todo : Attention to this expression
+		for index := range LostNodes {
+			var result bool
+			glog.Infof("需要检测节点 ID : %d", LostNodes[index])
+			result = AllNodes[LostNodes[index]].DetectNode(file)
+			recFinish = recFinish && result
+		}
 		for !recFinish {
 			recFinish = true
 			//todo : Attention to this expression
@@ -607,20 +619,17 @@ func (file File) DetectDataFile(node Node, faultCount, targetRow int) bool {
 	var startNodeNum = (node.getIndexInDataNodes() - targetRow*k + len(DataNodes)) % len(DataNodes)
 	var rddtNodeNum = (faultCount*len(DataNodes) + startNodeNum) / SysConfig.RowNum
 	glog.Info("Detecting Data File : " + "temp/Data." + strconv.Itoa(NodeDataNum) + "/" + file.FileFullName + "." + strconv.Itoa(NodeDataNum) + strconv.Itoa(targetRow))
-	if !FileExisted("temp/Data." + strconv.Itoa(NodeDataNum) + "/" + file.FileFullName + "." + strconv.Itoa(NodeDataNum) + strconv.Itoa(targetRow)) {
-		if file.DetectRddtFile(AllNodes[RddtNodes[rddtNodeNum]], k, startNodeNum) {
-			if file.DetectKLine(NodeDataNum, targetRow, rddtNodeNum, k, false) {
-				file.RestoreDataFile(NodeDataNum, rddtNodeNum, k, targetRow)
-			} else {
-				return false
-			}
-		} else {
-			return false
-		}
-	} else {
+	if FileExisted("temp/Data." + strconv.Itoa(NodeDataNum) + "/" + file.FileFullName + "." + strconv.Itoa(NodeDataNum) + strconv.Itoa(targetRow)) {
 		return true
 	}
-	return false
+	if !file.DetectRddtFile(AllNodes[RddtNodes[rddtNodeNum]], k, startNodeNum) {
+		return false
+	}
+	if !file.DetectKLine(NodeDataNum, targetRow, rddtNodeNum, k, false) {
+		return false
+	}
+	file.RestoreDataFile(NodeDataNum, rddtNodeNum, k, targetRow)
+	return true
 }
 
 func (file File) DetectRddtFile(node Node, k, dataNodeNum int) bool {

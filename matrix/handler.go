@@ -170,6 +170,26 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 		fileName := r.Form["fileName"][0]
 		targetFile := Tool.FindFileInAll(fileName)
 		targetFile.CollectFiles()
+		if Tool.SysConfig.Status==false {
+			var recFinish = true
+			//todo : Attention to this expression
+			for index := range Tool.LostNodes {
+				var result bool
+				glog.Infof("需要检测节点 ID : %d", Tool.LostNodes[index])
+				result = Tool.AllNodes[Tool.LostNodes[index]].DetectNode(*targetFile)
+				recFinish = recFinish && result
+			}
+			for !recFinish {
+				recFinish = true
+				//todo : Attention to this expression
+				for index := range Tool.LostNodes {
+					var result bool
+					glog.Infof("需要检测节点 ID : %d", Tool.LostNodes[index])
+					result = Tool.AllNodes[Tool.LostNodes[index]].DetectNode(*targetFile)
+					recFinish = recFinish && result
+				}
+			}
+		}
 		targetFile.GetFile("temp/")
 		w.Header().Set("Content-Disposition", "attachment; filename=" + fileName)
 		w.Header().Set("Content-Type", r.Header.Get("Content-Type"))

@@ -1,4 +1,4 @@
-$mydoc=[environment]::getfolderpath(“mydocuments”)
+$mydoc=[environment]::getfolderpath("mydocuments")
 cd -Path $mydoc\MatrixFS\Node\
 mkdir log
 mkdir storage
