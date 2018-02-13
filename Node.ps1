@@ -1,4 +1,4 @@
-Set-Location -PATH $env:GOPAT\src\github.com\Vaaaas\MatrixFS
+Set-Location -PATH $env:GOPATH\src\github.com\Vaaaas\MatrixFS
 cd node
 $mydoc=[environment]::getfolderpath("mydocuments")
 go build -o $mydoc\MatrixFS\Node\Node.exe Node.go
