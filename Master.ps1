@@ -1,4 +1,4 @@
-Set-Location -PATH C:\OneDrive\Software\Go\src\github.com\Vaaaas\MatrixFS\matrix\
+Set-Location -PATH $env:GOPATH\src\github.com\Vaaaas\MatrixFS\matrix\
 $mydoc=[environment]::getfolderpath("mydocuments")
 Copy-Item js -Destination $mydoc\MatrixFS\Master\ -Recurse -force
 Copy-Item view -Destination $mydoc\MatrixFS\Master\ -Recurse -force
