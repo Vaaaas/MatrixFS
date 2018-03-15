@@ -226,10 +226,14 @@ func deleteHandler(w http.ResponseWriter, r *http.Request) {
 func fileHandle(source string) *Tool.File {
 	glog.Infoln("Start FileHandler")
 	var file01 Tool.File
+	//分析原始文件属性
 	file01.Init(source)
+	//分割文件名
 	name, ext := file01.SliceFileName()
 	glog.Infof("File %s init finished", name + ext)
+	//生成数据分块阵列
 	file01.InitDataFiles()
+	//编码生成校验分块阵列
 	file01.InitRddtFiles()
 
 	// todo : send slices to Nodes

@@ -18,6 +18,7 @@ var SysConfig struct {
 	Status bool
 }
 
+//SysConfigured 判断是否已经配置最大容错数和阵列行数
 func SysConfigured() bool {
 	return SysConfig.FaultNum != 0 && SysConfig.RowNum != 0
 }
