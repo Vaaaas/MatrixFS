@@ -76,7 +76,7 @@ func main() {
 
 	go func() {
 		for {
-			//glog.Info("Connext Master!")
+			//glog.Info("Connect Master!")
 			connectMaster(MasterAdd)
 			time.Sleep(4 * time.Second)
 		}

@@ -18,7 +18,6 @@ func main() {
 	//SysConfig.InitConfig(fault, row)
 	glog.Info("Master 服务器启动")
 
-	//testFileHandle()
 	err := os.MkdirAll("./temp", 0766)
 	if err != nil {
 		glog.Errorln(err)

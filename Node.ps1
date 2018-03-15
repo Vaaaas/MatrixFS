@@ -3,7 +3,7 @@ cd node
 $mydoc=[environment]::getfolderpath("mydocuments")
 go build -o $mydoc\MatrixFS\Node\Node.exe Node.go
 cd -Path $mydoc\MatrixFS\Node\
-for($i=0;$i -lt 26;$i++){
+for($i=0;$i -lt 6;$i++){
     $port=9090+$i
     $storage="storage"+$i
     $log="log"+$i

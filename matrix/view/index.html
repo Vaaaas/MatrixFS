@@ -27,19 +27,19 @@
 <div class="container main" style="width: 500px;">
     <form name="sysConfig" role="form" action="/node" method="post" onsubmit="return validateForm(this)">
         <div class="form-group">
-            <label for="faultNumber">容错数</label>
+            <label for="faultNumber">系统最大容错数</label>
             <input type="number" class="form-control" id="faultNumber" name="faultNumber"
                    placeholder="Enter number of faults">
         </div>
         </br>
         <div class="form-group">
-            <label for="rowNumber">阵列行数</label>
+            <label for="rowNumber">分块阵列行数</label>
             <input type="number" class="form-control" id="rowNumber" name="rowNumber"
                    placeholder="Enter number of rows">
         </div>
         </br>
         </br>
-        <input type="submit" class="btn btn-default center-block" id="submitBtn" value="submit">
+        <input type="submit" class="btn btn-default center-block" id="submitBtn" value="确认">
     </form>
 </div>
 <script src="../js/index.js"></script>
