@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
+	"github.com/zabawaba99/firego"
 )
 
 //AllFiles 所有文件对象列表
@@ -246,39 +247,48 @@ func (file File) initOneDataFile(col int, row int, sourceFile *os.File) error {
 //SendToNode 将某个文件发送至对应存储节点
 func (file File) SendToNode() {
 	//发送数据分块
-	//todo : 区分是否<=1000
 	for i := 0; i < SysConfig.DataNum; i++ {
-		//当有节点丢失且当前分块需要发往丢失节点时，直接跳过
-		if SysConfig.Status == false && AllNodes[DataNodes[i]].Status == false {
-			continue
-		}
-		for j := 0; j < SysConfig.RowNum; j++ {
-			postOneFile(file, true, DataNodes[i], i, j, 0)
+		if file.Size <= 1000 {
+			postOneFile(file, true, DataNodes[i], i, 0, 0)
+		} else {
+			//当有节点丢失且当前分块需要发往丢失节点时，直接跳过
+			if SysConfig.Status == false && AllNodes[DataNodes[i]].Status == false {
+				continue
+			}
+			for j := 0; j < SysConfig.RowNum; j++ {
+				postOneFile(file, true, DataNodes[i], i, j, 0)
+			}
 		}
 	}
 
 	//发送校验分块
-	nodeCounter := 0
-	fileCounter := 0
-	rddtFileCounter := 0
-	for xx := 0; xx < SysConfig.FaultNum; xx++ {
-		k := (int)((xx + 2) / 2 * (int)(math.Pow(-1, (float64)(xx+2))))
-		for fileCounter < SysConfig.DataNum {
-			glog.Infof("Rddt Node Num : %d \t k : %d \t fileCounter : %d \t nodeCounter : %d\n", nodeCounter, k, fileCounter, nodeCounter)
-			if SysConfig.Status == true && AllNodes[RddtNodes[nodeCounter]].Status == true {
-				postOneFile(file, false, RddtNodes[nodeCounter], k, fileCounter, nodeCounter)
+	if file.Size <= 1000 {
+		for i := 0; i < SysConfig.RddtNum; i++ {
+			postOneFile(file, false, RddtNodes[i], i, 0, 0)
+		}
+	} else {
+		nodeCounter := 0
+		fileCounter := 0
+		rddtFileCounter := 0
+		for xx := 0; xx < SysConfig.FaultNum; xx++ {
+			k := (int)((xx + 2) / 2 * (int)(math.Pow(-1, (float64)(xx+2))))
+			for fileCounter < SysConfig.DataNum {
+				glog.Infof("Rddt Node Num : %d \t k : %d \t fileCounter : %d \t nodeCounter : %d\n", nodeCounter, k, fileCounter, nodeCounter)
+				if SysConfig.Status == true && AllNodes[RddtNodes[nodeCounter]].Status == true {
+					postOneFile(file, false, RddtNodes[nodeCounter], k, fileCounter, nodeCounter)
+				}
+				fileCounter++
+				rddtFileCounter++
+				if rddtFileCounter%(SysConfig.SliceNum/SysConfig.DataNum) == 0 {
+					nodeCounter++
+					rddtFileCounter = 0
+				}
+				if fileCounter != SysConfig.DataNum {
+					continue
+				}
+				fileCounter = 0
+				break
 			}
-			fileCounter++
-			rddtFileCounter++
-			if rddtFileCounter%(SysConfig.SliceNum/SysConfig.DataNum) == 0 {
-				nodeCounter++
-				rddtFileCounter = 0
-			}
-			if fileCounter != SysConfig.DataNum {
-				continue
-			}
-			fileCounter = 0
-			break
 		}
 	}
 }
@@ -389,7 +399,6 @@ func (file File) GetFile(targetFolder string) error {
 
 			//判断哪一个分块是原始数据文件的结尾，那么该分块仍需要读取文件，剩下的分块就只需要填充
 			fillSliceCount := (int)(file.FillSize/file.SliceSize) + 1
-			//todo ： 这里需要去掉的分块不一定是一个
 			if file.FillLast && rowPosition*SysConfig.DataNum+dataPosition == SysConfig.SliceNum-fillSliceCount {
 				//需要补充 && 第一个补充分块混合原文件和0
 				bufferNeeded := file.SliceSize - (file.SliceSize - file.FillSize%file.SliceSize)
@@ -746,20 +755,41 @@ func getOneFile(file File, isData bool, nodeID uint, posiX, posiY, nodeCounter i
 	glog.Info(res.Status)
 }
 
-//LostHandle 系统恢复入口
+//Old_LostHandle 系统恢复入口
 //todo : 修改恢复策略
-func LostHandle() {
-	glog.Infoln("开始执行 tool.LostHandle() ")
+func LostHandle() bool{
+	//todo:LostHandle
+	rddtList:=[]int()
+	oneFileFinished:=true
+
 	for _, file := range AllFiles {
-		// go func() {
+		for index := range LostNodes{
+			finished,isData:=AllNodes[LostNodes[index]].DetectNode(file)
+			if !isData{
+				rddtList=append(rddtList, index)
+			}
+			oneFileFinished=oneFileFinished&&finished
+		}
+	}
+
+	return true
+}
+
+func Old_LostHandle() {
+	glog.Infoln("开始执行 tool.Old_LostHandle() ")
+	//最外层循环所有文件
+	for _, file := range AllFiles {
 		glog.Infof("开始恢复文件 : %s", file.FileFullName)
-		// Collect Distributed Files
+
+		//收集剩余分块
+		//todo : 按需要收集分块
 		file.CollectFiles()
+
 		var recFinish = true
 		for index := range LostNodes {
 			var result bool
 			glog.Infof("需要检测节点 ID : %d", LostNodes[index])
-			result = AllNodes[LostNodes[index]].DetectNode(file)
+			result = AllNodes[LostNodes[index]].Old_DetectNode(file)
 			recFinish = recFinish && result
 		}
 		for !recFinish {
@@ -767,20 +797,40 @@ func LostHandle() {
 			for index := range LostNodes {
 				var result bool
 				glog.Infof("需要检测节点 ID : %d", LostNodes[index])
-				result = AllNodes[LostNodes[index]].DetectNode(file)
+				result = AllNodes[LostNodes[index]].Old_DetectNode(file)
 				recFinish = recFinish && result
 			}
 		}
 		file.InitRddtFiles()
 		file.GetFile("temp/")
 		file.SendToNode()
-		// }()
 	}
 	//todo : 清除所有丢失节点？
 }
 
-//DetectDataFile 检测数据分块是否全部恢复
-func (file File) DetectDataFile(node Node, faultCount, targetRow int) bool {
+func (file File) DetectDataFile(node Node, targetRow int) bool {
+	var NodeDataNum = node.getIndexInDataNodes()
+	for fCount:=0;fCount<SysConfig.FaultNum;fCount++{
+		k := (int)((fCount + 2) / 2 * (int)(math.Pow(-1, (float64)(fCount+2))))
+		var startNodeNum = (node.getIndexInDataNodes() - targetRow*k + len(DataNodes)) % len(DataNodes)
+		var rddtNodeNum = (fCount*len(DataNodes) + startNodeNum) / SysConfig.RowNum
+		glog.Info("Detecting Data File : " + "temp/Data." + strconv.Itoa(NodeDataNum) + "/" + file.FileFullName + "." + strconv.Itoa(NodeDataNum) + strconv.Itoa(targetRow))
+		if FileExisted("temp/Data." + strconv.Itoa(NodeDataNum) + "/" + file.FileFullName + "." + strconv.Itoa(NodeDataNum) + strconv.Itoa(targetRow)) {
+			return true
+		}
+		if !file.DetectRddtFile(AllNodes[RddtNodes[rddtNodeNum]], k, startNodeNum) {
+			return false
+		}
+		if !file.Old_DetectKLine(NodeDataNum, targetRow, rddtNodeNum, k, false) {
+			//todo :DetectDataFile
+		}
+		//todo:DetectDataFile
+	}
+
+}
+
+//Old_DetectDataFile 检测数据分块是否全部恢复
+func (file File) Old_DetectDataFile(node Node, faultCount, targetRow int) bool {
 	var NodeDataNum = node.getIndexInDataNodes()
 	var k = (int)((faultCount + 2) / 2 * (int)(math.Pow(-1, (float64)(faultCount+2))))
 	var startNodeNum = (node.getIndexInDataNodes() - targetRow*k + len(DataNodes)) % len(DataNodes)
@@ -792,7 +842,7 @@ func (file File) DetectDataFile(node Node, faultCount, targetRow int) bool {
 	if !file.DetectRddtFile(AllNodes[RddtNodes[rddtNodeNum]], k, startNodeNum) {
 		return false
 	}
-	if !file.DetectKLine(NodeDataNum, targetRow, rddtNodeNum, k, false) {
+	if !file.Old_DetectKLine(NodeDataNum, targetRow, rddtNodeNum, k, false) {
 		return false
 	}
 	file.RestoreDataFile(NodeDataNum, rddtNodeNum, k, targetRow)
@@ -804,15 +854,19 @@ func (file File) DetectRddtFile(node Node, k, dataNodeNum int) bool {
 	if FileExisted("temp/Rddt." + strconv.Itoa(node.getIndexInRddtNodes()) + "/" + file.FileFullName + "." + strconv.Itoa(k) + strconv.Itoa(dataNodeNum)) {
 		return true
 	}
-	if file.DetectKLine(dataNodeNum, 0, node.getIndexInRddtNodes(), k, true) {
+	if file.Old_DetectKLine(dataNodeNum, 0, node.getIndexInRddtNodes(), k, true) {
 		file.initOneRddtFile(dataNodeNum, k, node.getIndexInRddtNodes())
 		return true
 	}
 	return false
 }
 
-//DetectKLine 检测某条码链是否可用于恢复
 func (file File) DetectKLine(dataNodeNum, targetRow, rddtNodeNum, k int, isForRddt bool) bool {
+	//todo:DetectKLine
+}
+
+//Old_DetectKLine 检测某条码链是否可用于恢复
+func (file File) Old_DetectKLine(dataNodeNum, targetRow, rddtNodeNum, k int, isForRddt bool) bool {
 	var result = true
 	var startIndex = (dataNodeNum - k*targetRow + len(DataNodes)) % len(DataNodes)
 	var tempResult = true

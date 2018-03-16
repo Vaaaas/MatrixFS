@@ -178,7 +178,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 			for index := range tool.LostNodes {
 				var result bool
 				glog.Infof("需要检测节点 ID : %d", tool.LostNodes[index])
-				result = tool.AllNodes[tool.LostNodes[index]].DetectNode(*targetFile)
+				result = tool.AllNodes[tool.LostNodes[index]].Old_DetectNode(*targetFile)
 				recFinish = recFinish && result
 			}
 			for !recFinish {
@@ -186,7 +186,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 				for index := range tool.LostNodes {
 					var result bool
 					glog.Infof("需要检测节点 ID : %d", tool.LostNodes[index])
-					result = tool.AllNodes[tool.LostNodes[index]].DetectNode(*targetFile)
+					result = tool.AllNodes[tool.LostNodes[index]].Old_DetectNode(*targetFile)
 					recFinish = recFinish && result
 				}
 			}
@@ -324,29 +324,30 @@ func restoreHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		t.Execute(w, data)
 	} else {
-		//Need to Collect All files to Master Server
+		//以前：将所有文件收集至中心节点
 		glog.Infoln("将空节点转换至丢失节点")
 
+		//处理丢失节点，将空节点转化为丢失节点，为空节点设置新ID
 		for i := 0; i < len(tool.LostNodes); i++ {
 			prevLostID := tool.LostNodes[i]
 			empID := tool.EmptyNodes[i]
 
+			//生成url
 			url := "http://" + tool.AllNodes[empID].Address.String() + ":" + strconv.Itoa(tool.AllNodes[empID].Port) + "/resetid"
 			glog.Info("[Reset ID] URL " + url)
 
+			//向空节点发送重设ID请求
 			req, err := http.NewRequest("POST", url, nil)
 			if err != nil {
 				glog.Errorln(err)
 				panic(err)
 			}
 			req.Header.Set("NewID", strconv.Itoa((int)(prevLostID)))
-
 			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
 				glog.Errorln(err)
 				panic(err)
 			}
-
 			defer resp.Body.Close()
 			respBody, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
@@ -355,30 +356,34 @@ func restoreHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			glog.Info(resp.Status)
 			glog.Info(string(respBody))
-
 			glog.Infof("空节点 ID : %d, 丢失节点ID : %d", empID, prevLostID)
+			//转化完成，得到新节点信息
 			newNode := tool.AllNodes[empID]
 			newNode.ID = prevLostID
 			newNode.Status = false
 			tool.AllNodes[prevLostID] = newNode
 			glog.Infof("用于恢复的节点ID : %d", newNode.ID)
 		}
-		tool.LostHandle()
 
+		tool.Old_LostHandle()
+
+		//恢复完成，丢失节点状态设为正常
 		for i := 0; i < len(tool.LostNodes); i++ {
 			node := tool.AllNodes[tool.LostNodes[i]]
 			node.Status = true
 			tool.AllNodes[tool.LostNodes[i]] = node
 		}
 
-		//Delete Reset EmptyNodes
+		//删除已转化的空节点
 		for i := 0; i < len(tool.LostNodes); i++ {
 			delete(tool.AllNodes, tool.EmptyNodes[0])
 			tool.EmptyNodes = append(tool.EmptyNodes[:0], tool.EmptyNodes[1:]...)
 		}
-		//Delete All LostNodes
+		//清空失效节点列表
 		tool.LostNodes = []uint{}
+		//系统状态设为正常
 		tool.SysConfig.Status = true
+		//前段显示信息提示页面
 		t, err := template.ParseFiles("view/info.html")
 		data := struct {
 			info string

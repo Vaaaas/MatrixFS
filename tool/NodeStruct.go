@@ -37,7 +37,6 @@ type Node struct {
 
 /*
 B 用于表示1个单位
-
 */
 const (
 	B  = 1
@@ -98,19 +97,35 @@ func (node Node) getIndexInRddtNodes() int {
 	return 0
 }
 
-//DetectNode 检测节点中的文件是否全部恢复
-func (node Node) DetectNode(file File) bool {
+func (node Node) DetectNode(file File) (finished, isDataNode bool){
+	if node.isDataNode(){
+		glog.Infof("开始检测节点ID : %d, 文件名 : %s", node.ID, file.FileFullName)
+		var allExist = false
+		for row:=0;row<=SysConfig.RowNum/2+1;row++{
+			//todo:DetectNode
+			file.Old_DetectDataFile()
+		}
+
+		return true,true
+	}else{
+		return true,false
+	}
+}
+
+//Old_DetectNode 检测节点中的文件是否全部恢复
+func (node Node) Old_DetectNode(file File) bool {
 	glog.Infof("开始检测节点ID : %d, 文件名 : %s", node.ID, file.FileFullName)
 	if node.isDataNode() {
 		glog.Info("被检测节点为 [DATA] Node")
 		var allExist = false
+		//todo : 外层循环错误数？
 		for faultCount := 0; faultCount < SysConfig.FaultNum; faultCount++ {
 			if allExist {
 				break
 			}
 			allExist = true
 			for rowCount := 0; rowCount < SysConfig.RowNum; rowCount++ {
-				var result = file.DetectDataFile(node, faultCount, rowCount)
+				var result = file.Old_DetectDataFile(node, faultCount, rowCount)
 				allExist = allExist && result
 			}
 		}
