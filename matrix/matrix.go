@@ -5,8 +5,9 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/Vaaaas/MatrixFS/tool"
 	"github.com/golang/glog"
-	"github.com/Vaaaas/MatrixFS/Tool"
 )
 
 func main() {
@@ -26,7 +27,7 @@ func main() {
 	if err != nil {
 		glog.Errorln(err)
 	}
-	Tool.IDCounter = 0
+	tool.IDCounter = 0
 
 	//Pages
 	http.HandleFunc("/", rootHandler)
@@ -47,12 +48,12 @@ func main() {
 	go func() {
 		for {
 			now := time.Now().UnixNano() / 1000000
-			for key, value := range Tool.AllNodes {
+			for key, value := range tool.AllNodes {
 				//glog.Infof("Now : %d, value.Lasttime : %d, delta : %d, delta-6000 : %d", now, value.LastTime, now - value.LastTime, now - value.LastTime - 6000)
-				if now - value.LastTime > 6000 {
+				if now-value.LastTime > 6000 {
 					node := value
 					node.Status = false
-					Tool.AllNodes[key] = node
+					tool.AllNodes[key] = node
 					OnDeleted(&node)
 				}
 			}
@@ -65,10 +66,10 @@ func main() {
 	}
 }
 
-func OnDeleted(node *Tool.Node) {
+func OnDeleted(node *tool.Node) {
 	//glog.Info("OnDeleted")
 	var isEmpty = false
-	for _, value := range Tool.EmptyNodes {
+	for _, value := range tool.EmptyNodes {
 		if value == node.ID {
 			glog.Info("Empty Node Found")
 			isEmpty = true
@@ -77,23 +78,23 @@ func OnDeleted(node *Tool.Node) {
 
 	if isEmpty {
 		//If Empty Node Lost, delete from all & Empty Slices
-		delete(Tool.AllNodes, node.ID)
-		index := Tool.GetFileIndexInAll(len(Tool.EmptyNodes), func(i int) bool {
-			return Tool.EmptyNodes[i] == node.ID
+		delete(tool.AllNodes, node.ID)
+		index := tool.GetFileIndexInAll(len(tool.EmptyNodes), func(i int) bool {
+			return tool.EmptyNodes[i] == node.ID
 		})
-		Tool.EmptyNodes = append(Tool.EmptyNodes[:index], Tool.EmptyNodes[index + 1:]...)
+		tool.EmptyNodes = append(tool.EmptyNodes[:index], tool.EmptyNodes[index+1:]...)
 		glog.Info("已删除空节点")
 	} else {
 		var lostExist = false
-		for _, value := range Tool.LostNodes {
+		for _, value := range tool.LostNodes {
 			if value == node.ID {
 				//glog.Info("该节点为已丢失节点 : %d", node.ID)
 				lostExist = true
 			}
 		}
 		if !lostExist {
-			Tool.AddToLost(node.ID)
-			Tool.SysConfig.Status = false
+			tool.AddToLost(node.ID)
+			tool.SysConfig.Status = false
 			glog.Infof("新的丢失节点, SysConfigure 变为 false, 丢失节点ID : %d", node.ID)
 
 		}

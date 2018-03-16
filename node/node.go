@@ -14,11 +14,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Vaaaas/MatrixFS/Tool"
+	"github.com/Vaaaas/MatrixFS/tool"
+	"github.com/Vaaaas/go-disk-usage/du"
 	"github.com/golang/glog"
 )
 
-var nodeInfo Tool.Node
+var nodeInfo tool.Node
 var MasterAdd *net.TCPAddr
 var NodeAdd *net.TCPAddr
 
@@ -47,7 +48,7 @@ func main() {
 	}
 
 	//Init ID Counter, IDCounter++ when create new Node
-	Tool.IDCounter = 0
+	tool.IDCounter = 0
 
 	//Init Master & Node Address
 	MasterAdd, err = net.ResolveTCPAddr("tcp4", master)
@@ -66,7 +67,8 @@ func main() {
 	}
 	dir = strings.Replace(dir, "\\", "/", -1)
 	//Get Free Space of Storage Path
-	volume := Tool.DiskUsage(dir)
+	diskUsage := du.NewDiskUsage(dir)
+	volume := (float64)(diskUsage.Available()) / (float64)(1024*1024*1024)
 	glog.Infof("Node start here : %d", NodeAdd.Port)
 
 	glog.Infof("Store Path: %s, Free space: %f", StorePath, volume)
@@ -88,7 +90,7 @@ func main() {
 
 	http.Handle("/download/", http.StripPrefix("/download/", http.FileServer(http.Dir(StorePath))))
 
-	if err := http.ListenAndServe(":" + strconv.Itoa(NodeAdd.Port), nil); err != nil {
+	if err := http.ListenAndServe(":"+strconv.Itoa(NodeAdd.Port), nil); err != nil {
 		glog.Errorln(err)
 		panic(err)
 	}
@@ -108,13 +110,13 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		defer file.Close()
 		longSpl := strings.Split(handler.Filename, "/")
 
-		err = os.MkdirAll(StorePath + "/", 0766)
+		err = os.MkdirAll(StorePath+"/", 0766)
 		if err != nil {
 			glog.Errorln(err)
 			panic(err)
 		}
 
-		f, err := os.OpenFile(StorePath + "/" + longSpl[len(longSpl) - 1], os.O_WRONLY | os.O_CREATE, 0666)
+		f, err := os.OpenFile(StorePath+"/"+longSpl[len(longSpl)-1], os.O_WRONLY|os.O_CREATE, 0666)
 		if err != nil {
 			glog.Error(err)
 			panic(err)
@@ -134,13 +136,13 @@ func deleteHandler(w http.ResponseWriter, r *http.Request) {
 
 		glog.Info("File to [Delete] Name: " + fileName)
 		if _, err := os.Stat(StorePath + "/" + fileName); os.IsNotExist(err) {
-			glog.Warningf("[File to Delete NOT EXIST] %s", StorePath + "/" + fileName)
+			glog.Warningf("[File to Delete NOT EXIST] %s", StorePath+"/"+fileName)
 		} else {
 			err := os.Remove(StorePath + "/" + fileName)
 			if err != nil {
 				glog.Errorln(err)
 			} else {
-				glog.Infof("[File to Delete] %s", StorePath + "/" + fileName)
+				glog.Infof("[File to Delete] %s", StorePath+"/"+fileName)
 			}
 		}
 
@@ -177,7 +179,8 @@ func connectMaster(master *net.TCPAddr) error {
 	}
 	dir = strings.Replace(dir, "\\", "/", -1)
 	//Get Free Space of Storage Path
-	volume := Tool.DiskUsage(dir)
+	diskUsage := du.NewDiskUsage(dir)
+	volume := (float64)(diskUsage.Available()) / (float64)(1024*1024*1024)
 	//glog.Infof("Store Path: %s, Free space: %f", StorePath, volume)
 
 	nodeInfo.Volume = volume
@@ -185,7 +188,7 @@ func connectMaster(master *net.TCPAddr) error {
 
 	b := new(bytes.Buffer)
 	json.NewEncoder(b).Encode(nodeInfo)
-	res, err := http.Post("http://" + MasterAdd.String() + "/greet", "application/json; charset=utf-8", b)
+	res, err := http.Post("http://"+MasterAdd.String()+"/greet", "application/json; charset=utf-8", b)
 	if err != nil {
 		glog.Error(err)
 	}
@@ -199,7 +202,7 @@ func connectMaster(master *net.TCPAddr) error {
 	return nil
 }
 
-func InitStruct(nodeInfo *Tool.Node, address net.IP, port int, volume float64) error {
+func InitStruct(nodeInfo *tool.Node, address net.IP, port int, volume float64) error {
 	nodeInfo.Address = address
 	nodeInfo.Port = port
 	nodeInfo.Volume = volume

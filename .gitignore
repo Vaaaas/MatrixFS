@@ -50,3 +50,4 @@ node/Node*
 /node/log*/
 /node/storage*/
 /matrix/Matrix
+.DS_Store

@@ -1,34 +1,44 @@
-package Tool
+package tool
 
 import (
 	"math"
 	"net"
-	"syscall"
-	"unsafe"
 
 	"github.com/golang/glog"
 )
 
+//IDCounter ID 计数器
 var IDCounter uint
 
+//AllNodes key：节点ID Value：节点对象
 var AllNodes = make(map[uint]Node)
+
+//DataNodes 数据节点ID列表
 var DataNodes []uint
+
+//RddtNodes 校验节点ID列表
 var RddtNodes []uint
+
+//LostNodes 丢失节点ID列表
 var LostNodes []uint
+
+//EmptyNodes 空节点ID列表
 var EmptyNodes []uint
 
+//Node 节点结构体
 type Node struct {
 	ID       uint    `json:"ID"`
-	Address  net.IP  `json:Address`
-	Port     int     `json:Port`
-	Volume   float64 `json:Volume`
-	Status   bool    `json:Status`
-	LastTime int64   `json:Lasttime`
-	//Status:
-	//false	 -> 丢失或
-	//true	 -> 正常
+	Address  net.IP  `json:"Address"`
+	Port     int     `json:"Port"`
+	Volume   float64 `json:"Volume"`
+	Status   bool    `json:"Status"`
+	LastTime int64   `json:"Lasttime"`
 }
 
+/*
+B 用于表示1个单位
+
+*/
 const (
 	B  = 1
 	KB = 1024 * B
@@ -36,30 +46,13 @@ const (
 	GB = 1024 * MB
 )
 
+//NodeConfigured 判断节点是否已经配置
 func NodeConfigured() bool {
-	//todo : auto configure node
+	//todo : 自动设定节点
 	return len(AllNodes) != 0
 }
 
-//DiskUsage of path/disk
-func DiskUsage(path string) float64 {
-	//Win:
-	h := syscall.MustLoadDLL("kernel32.dll")
-	c := h.MustFindProc("GetDiskFreeSpaceExW")
-	lpFreeBytesAvailable := int64(0)
-	lpTotalNumberOfBytes := int64(0)
-	lpTotalNumberOfFreeBytes := int64(0)
-	_, _, err := c.Call(uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(path))),
-		uintptr(unsafe.Pointer(&lpFreeBytesAvailable)),
-		uintptr(unsafe.Pointer(&lpTotalNumberOfBytes)),
-		uintptr(unsafe.Pointer(&lpTotalNumberOfFreeBytes)))
-	if err != nil {
-		glog.Error(err)
-		//panic(err)
-	}
-	return (float64)(lpFreeBytesAvailable / 1024 / 1024.0 / 1000)
-}
-
+//AppendNode 将空节点加入数据或校验节点列表
 func (node Node) AppendNode() bool {
 	if CheckDataNodeNum() > 0 {
 		EmptyToData(node.ID)
@@ -80,6 +73,7 @@ func (node Node) AppendNode() bool {
 	}
 }
 
+//AddToLost 将节点ID加入失效节点列表
 func AddToLost(nodeID uint) {
 	LostNodes = append(LostNodes, nodeID)
 }
@@ -104,6 +98,7 @@ func (node Node) getIndexInRddtNodes() int {
 	return 0
 }
 
+//DetectNode 检测节点中的文件是否全部恢复
 func (node Node) DetectNode(file File) bool {
 	glog.Infof("开始检测节点ID : %d, 文件名 : %s", node.ID, file.FileFullName)
 	if node.isDataNode() {
@@ -164,22 +159,27 @@ func (node Node) isRddtNode() bool {
 	return false
 }
 
+//CheckDataNodeNum 确定系统还需要几个数据节点
 func CheckDataNodeNum() int {
 	return SysConfig.DataNum - len(DataNodes)
 }
 
+//CheckRddtNodeNum 确定系统还需要几个校验节点
 func CheckRddtNodeNum() int {
 	return SysConfig.RddtNum - len(RddtNodes)
 }
 
+//EmptyToData 将空节点ID加入数据节点ID列表
 func EmptyToData(nodeID uint) {
 	DataNodes = append(DataNodes, nodeID)
 }
 
+//EmptyToRddt 将空节点ID加入校验节点ID列表
 func EmptyToRddt(nodeID uint) {
 	RddtNodes = append(RddtNodes, nodeID)
 }
 
+//GetIndexInData 在全部数据节点中寻找某个节点ID在该列表中的位置
 func GetIndexInData(targetID uint) int {
 	for index, dataNodeID := range DataNodes {
 		if dataNodeID == targetID {
@@ -189,6 +189,7 @@ func GetIndexInData(targetID uint) int {
 	return 0
 }
 
+//GetIndexInRddt 在全部校验节点中寻找某个节点ID在该列表中的位置
 func GetIndexInRddt(targetID uint) int {
 	for index, rddtNodeID := range RddtNodes {
 		if rddtNodeID == targetID {
