@@ -13,13 +13,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/Vaaaas/MatrixFS/tool"
-	"github.com/Vaaaas/go-disk-usage/du"
 	"github.com/golang/glog"
+	"github.com/Vaaaas/go-disk-usage/du"
+	"github.com/Vaaaas/MatrixFS/nodeHandler"
 )
 
-var nodeInfo tool.Node
+var nodeInfo nodeHandler.Node
 var MasterAdd *net.TCPAddr
 var NodeAdd *net.TCPAddr
 
@@ -48,7 +47,7 @@ func main() {
 	}
 
 	//Init ID Counter, IDCounter++ when create new Node
-	tool.IDCounter = 0
+	nodeHandler.IDCounter = 0
 
 	//Init Master & Node Address
 	MasterAdd, err = net.ResolveTCPAddr("tcp4", master)
@@ -202,7 +201,7 @@ func connectMaster(master *net.TCPAddr) error {
 	return nil
 }
 
-func InitStruct(nodeInfo *tool.Node, address net.IP, port int, volume float64) error {
+func InitStruct(nodeInfo *nodeHandler.Node, address net.IP, port int, volume float64) error {
 	nodeInfo.Address = address
 	nodeInfo.Port = port
 	nodeInfo.Volume = volume

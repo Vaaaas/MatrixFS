@@ -10,18 +10,20 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Vaaaas/MatrixFS/tool"
+	"github.com/Vaaaas/MatrixFS/sysTool"
 	"github.com/golang/glog"
+	"github.com/Vaaaas/MatrixFS/nodeHandler"
+	"github.com/Vaaaas/MatrixFS/fileHandler"
 )
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/" {
 
-		if !tool.SysConfigured() {
+		if !sysTool.SysConfigured() {
 			glog.Infoln("URL: " + r.URL.Path + " not configured, redirect to index.html")
 			http.Redirect(w, r, "/index", http.StatusFound)
 		} else {
-			if !tool.NodeConfigured() {
+			if !nodeHandler.NodeConfigured() {
 				glog.Infoln("URL: " + r.URL.Path + " Node not configured, redirect to node.html")
 				http.Redirect(w, r, "/node", http.StatusFound)
 			} else {
@@ -45,8 +47,8 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func indexPageHandler(w http.ResponseWriter, r *http.Request) {
-	if tool.SysConfigured() {
-		if !tool.NodeConfigured() {
+	if sysTool.SysConfigured() {
+		if !nodeHandler.NodeConfigured() {
 			glog.Infoln("URL: " + r.URL.Path + " Node not configured, redirect to nnode.html")
 			http.Redirect(w, r, "/node", http.StatusFound)
 		} else {
@@ -62,17 +64,17 @@ func indexPageHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func nodeHandler(w http.ResponseWriter, r *http.Request) {
+func nodeEnterHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	glog.Infoln("[File Page] method: ", r.Method)
 	if r.Method == "GET" {
-		if !tool.SysConfigured() {
+		if !sysTool.SysConfigured() {
 			glog.Infoln("URL: " + r.URL.Path + "not configured, redirect to index.html")
 			http.Redirect(w, r, "/index", http.StatusFound)
 			return
 		}
 	} else {
-		if !tool.SysConfigured() {
+		if !sysTool.SysConfigured() {
 			glog.Infoln("[Configure-Fault]" + r.Form["faultNumber"][0])
 			glog.Infoln("[Configure-Row]" + r.Form["rowNumber"][0])
 			faultNum, err := strconv.Atoi(r.Form["faultNumber"][0])
@@ -84,18 +86,18 @@ func nodeHandler(w http.ResponseWriter, r *http.Request) {
 				glog.Error("rowNumber参数转换为int失败")
 			}
 			//todo : 初始化系统设定后, 上传文件前仍然需要确认存储节点
-			tool.InitConfig(faultNum, rowNum)
+			sysTool.InitConfig(faultNum, rowNum)
 		}
 	}
 	data := struct {
-		Nodes        map[uint]tool.Node
+		Nodes        map[uint]nodeHandler.Node
 		SystemStatus bool
 	}{
-		Nodes:        tool.AllNodes,
-		SystemStatus: tool.SysConfig.Status,
+		Nodes:        nodeHandler.AllNodes,
+		SystemStatus: sysTool.SysConfig.Status,
 	}
 
-	glog.Infof("System Status : %s, Length of AllNodes : %d", strconv.FormatBool(tool.SysConfig.Status), len(tool.AllNodes))
+	glog.Infof("System Status : %s, Length of AllNodes : %d", strconv.FormatBool(sysTool.SysConfig.Status), len(nodeHandler.AllNodes))
 	t, err := template.ParseFiles("view/node.html")
 	if err != nil {
 		glog.Errorln(err)
@@ -106,17 +108,17 @@ func nodeHandler(w http.ResponseWriter, r *http.Request) {
 func filePageHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	glog.Infoln("[File Page] method: ", r.Method)
-	if !tool.SysConfigured() {
+	if !sysTool.SysConfigured() {
 		glog.Infoln("URL: " + r.URL.Path + "not configured, redirect to index.html")
 		http.Redirect(w, r, "/index", http.StatusFound)
 		return
 	}
-	//glog.Infof("Length of AllFiles : %d", len(tool.AllFiles))
+	//glog.Infof("Length of AllFiles : %d", len(sysTool.AllFiles))
 	t, err := template.ParseFiles("view/file.html")
 	if err != nil {
 		glog.Errorln(err)
 	}
-	t.Execute(w, tool.AllFiles)
+	t.Execute(w, fileHandler.AllFiles)
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
@@ -165,28 +167,28 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	glog.Infoln("[DOWNLOAD] method: ", r.Method)
 
-	if !tool.SysConfigured() {
+	if !sysTool.SysConfigured() {
 		glog.Infoln("URL: " + r.URL.Path + " not configured, redirect to index.html")
 		http.Redirect(w, r, "/index", http.StatusFound)
 	} else {
 		glog.Infoln("[Form-File_Name]" + r.Form["fileName"][0])
 		fileName := r.Form["fileName"][0]
-		targetFile := tool.FindFileInAll(fileName)
+		targetFile := fileHandler.FindFileInAll(fileName)
 		targetFile.CollectFiles()
-		if tool.SysConfig.Status == false {
+		if sysTool.SysConfig.Status == false {
 			var recFinish = true
-			for index := range tool.LostNodes {
+			for index := range nodeHandler.LostNodes {
 				var result bool
-				glog.Infof("需要检测节点 ID : %d", tool.LostNodes[index])
-				result = tool.AllNodes[tool.LostNodes[index]].Old_DetectNode(*targetFile)
+				glog.Infof("需要检测节点 ID : %d", nodeHandler.LostNodes[index])
+				result = nodeHandler.AllNodes[nodeHandler.LostNodes[index]].Old_DetectNode(*targetFile)
 				recFinish = recFinish && result
 			}
 			for !recFinish {
 				recFinish = true
-				for index := range tool.LostNodes {
+				for index := range nodeHandler.LostNodes {
 					var result bool
-					glog.Infof("需要检测节点 ID : %d", tool.LostNodes[index])
-					result = tool.AllNodes[tool.LostNodes[index]].Old_DetectNode(*targetFile)
+					glog.Infof("需要检测节点 ID : %d", nodeHandler.LostNodes[index])
+					result = nodeHandler.AllNodes[nodeHandler.LostNodes[index]].Old_DetectNode(*targetFile)
 					recFinish = recFinish && result
 				}
 			}
@@ -205,28 +207,28 @@ func deleteHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	glog.Infoln("[DELETE] method: ", r.Method)
 
-	if !tool.SysConfigured() {
+	if !sysTool.SysConfigured() {
 		glog.Infoln("URL: " + r.URL.Path + " not configured, redirect to index.html")
 		http.Redirect(w, r, "/index", http.StatusFound)
 	} else {
 		glog.Infoln("[Form-File_Name]" + r.Form["fileName"][0])
 		fileName := r.Form["fileName"][0]
-		targetFile := tool.FindFileInAll(fileName)
+		targetFile := fileHandler.FindFileInAll(fileName)
 		targetFile.DeleteSlices()
 		targetFile.DeleteAllTempFiles()
-		index := tool.GetFileIndexInAll(len(tool.AllFiles), func(i int) bool {
-			return tool.AllFiles[i].FileFullName == targetFile.FileFullName
+		index := sysTool.GetIndexInAll(len(fileHandler.AllFiles), func(i int) bool {
+			return fileHandler.AllFiles[i].FileFullName == targetFile.FileFullName
 		})
-		tool.AllFiles = append(tool.AllFiles[:index], tool.AllFiles[index+1:]...)
+		fileHandler.AllFiles = append(fileHandler.AllFiles[:index], fileHandler.AllFiles[index+1:]...)
 		glog.Infoln("[Download] " + targetFile.FileFullName + " Finished")
 		http.Redirect(w, r, "/file", http.StatusFound)
 	}
 
 }
 
-func fileHandle(source string) *tool.File {
+func fileHandle(source string) *fileHandler.File {
 	glog.Infoln("Start FileHandler")
-	var file01 tool.File
+	var file01 fileHandler.File
 	//分析原始文件属性
 	file01.Init(source)
 	//分割文件名
@@ -244,7 +246,7 @@ func fileHandle(source string) *tool.File {
 
 func greetHandler(w http.ResponseWriter, r *http.Request) {
 	//在Master中建立空Node变量
-	var node tool.Node
+	var node nodeHandler.Node
 	var existed = false
 	if r.Body == nil {
 		http.Error(w, "Please send a request body", 400)
@@ -265,22 +267,22 @@ func greetHandler(w http.ResponseWriter, r *http.Request) {
 	if existed {
 		//glog.Infof("Node [%d] already Existed", node.ID)
 		var volume = node.Volume
-		node = tool.AllNodes[node.ID]
+		node = nodeHandler.AllNodes[node.ID]
 		node.Volume = volume
 		//node.Status = true
 		//glog.Infof("Before Time : %d", node.LastTime)
 		node.LastTime = time.Now().UnixNano() / 1000000
-		tool.AllNodes[node.ID] = node
-		//glog.Infof("Refresh Time : %d", tool.AllNodes[node.ID].LastTime)
+		nodeHandler.AllNodes[node.ID] = node
+		//glog.Infof("Refresh Time : %d", sysTool.AllNodes[node.ID].LastTime)
 	} else {
-		tool.IDCounter++
-		node.ID = tool.IDCounter
+		nodeHandler.IDCounter++
+		node.ID = nodeHandler.IDCounter
 		glog.Infof("Hello %d\n", node.ID)
 
-		tool.EmptyNodes = append(tool.EmptyNodes, node.ID)
+		nodeHandler.EmptyNodes = append(nodeHandler.EmptyNodes, node.ID)
 		node.LastTime = time.Now().UnixNano() / 1000000
 
-		tool.AllNodes[node.ID] = node
+		nodeHandler.AllNodes[node.ID] = node
 
 		if !node.AppendNode() {
 			glog.Infof("Still in Empty Slice %+v", node)
@@ -294,14 +296,14 @@ func greetHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func restoreHandler(w http.ResponseWriter, r *http.Request) {
-	if !tool.SysConfigured() {
+	if !sysTool.SysConfigured() {
 		glog.Infoln("URL: " + r.URL.Path + " not configured, redirect to index.html")
 		http.Redirect(w, r, "/index", http.StatusFound)
-	} else if tool.SysConfig.Status {
+	} else if sysTool.SysConfig.Status {
 		glog.Infoln("系统正常运行，无需修复.")
 		http.Redirect(w, r, "/node", http.StatusFound)
-	} else if len(tool.LostNodes) > tool.SysConfig.FaultNum {
-		glog.Warningf("丢失节点数 : %d", len(tool.LostNodes))
+	} else if len(nodeHandler.LostNodes) > sysTool.SysConfig.FaultNum {
+		glog.Warningf("丢失节点数 : %d", len(nodeHandler.LostNodes))
 		t, err := template.ParseFiles("view/info.html")
 		data := struct {
 			info string
@@ -312,7 +314,7 @@ func restoreHandler(w http.ResponseWriter, r *http.Request) {
 			glog.Errorln(err)
 		}
 		t.Execute(w, data)
-	} else if len(tool.EmptyNodes) < len(tool.LostNodes) {
+	} else if len(nodeHandler.EmptyNodes) < len(nodeHandler.LostNodes) {
 		t, err := template.ParseFiles("view/info.html")
 		data := struct {
 			info string
@@ -328,12 +330,12 @@ func restoreHandler(w http.ResponseWriter, r *http.Request) {
 		glog.Infoln("将空节点转换至丢失节点")
 
 		//处理丢失节点，将空节点转化为丢失节点，为空节点设置新ID
-		for i := 0; i < len(tool.LostNodes); i++ {
-			prevLostID := tool.LostNodes[i]
-			empID := tool.EmptyNodes[i]
+		for i := 0; i < len(nodeHandler.LostNodes); i++ {
+			prevLostID := nodeHandler.LostNodes[i]
+			empID := nodeHandler.EmptyNodes[i]
 
 			//生成url
-			url := "http://" + tool.AllNodes[empID].Address.String() + ":" + strconv.Itoa(tool.AllNodes[empID].Port) + "/resetid"
+			url := "http://" + nodeHandler.AllNodes[empID].Address.String() + ":" + strconv.Itoa(nodeHandler.AllNodes[empID].Port) + "/resetid"
 			glog.Info("[Reset ID] URL " + url)
 
 			//向空节点发送重设ID请求
@@ -358,31 +360,40 @@ func restoreHandler(w http.ResponseWriter, r *http.Request) {
 			glog.Info(string(respBody))
 			glog.Infof("空节点 ID : %d, 丢失节点ID : %d", empID, prevLostID)
 			//转化完成，得到新节点信息
-			newNode := tool.AllNodes[empID]
+			newNode := nodeHandler.AllNodes[empID]
 			newNode.ID = prevLostID
 			newNode.Status = false
-			tool.AllNodes[prevLostID] = newNode
+			nodeHandler.AllNodes[prevLostID] = newNode
 			glog.Infof("用于恢复的节点ID : %d", newNode.ID)
 		}
 
-		tool.Old_LostHandle()
+		//todo : 循环所有文件，为每个文件开一个线程用于恢复
+		//for _, file := range AllFiles {
+		//	go func(){
+		//
+		//		var recFinish = true
+		//
+		//	}()
+		//
+		//}
+			fileHandler.Old_LostHandle()
 
 		//恢复完成，丢失节点状态设为正常
-		for i := 0; i < len(tool.LostNodes); i++ {
-			node := tool.AllNodes[tool.LostNodes[i]]
+		for i := 0; i < len(nodeHandler.LostNodes); i++ {
+			node := nodeHandler.AllNodes[nodeHandler.LostNodes[i]]
 			node.Status = true
-			tool.AllNodes[tool.LostNodes[i]] = node
+			nodeHandler.AllNodes[nodeHandler.LostNodes[i]] = node
 		}
 
 		//删除已转化的空节点
-		for i := 0; i < len(tool.LostNodes); i++ {
-			delete(tool.AllNodes, tool.EmptyNodes[0])
-			tool.EmptyNodes = append(tool.EmptyNodes[:0], tool.EmptyNodes[1:]...)
+		for i := 0; i < len(nodeHandler.LostNodes); i++ {
+			delete(nodeHandler.AllNodes, nodeHandler.EmptyNodes[0])
+			nodeHandler.EmptyNodes = append(nodeHandler.EmptyNodes[:0], nodeHandler.EmptyNodes[1:]...)
 		}
 		//清空失效节点列表
-		tool.LostNodes = []uint{}
+		nodeHandler.LostNodes = []uint{}
 		//系统状态设为正常
-		tool.SysConfig.Status = true
+		sysTool.SysConfig.Status = true
 		//前段显示信息提示页面
 		t, err := template.ParseFiles("view/info.html")
 		data := struct {
