@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 	"time"
-
 	"github.com/Vaaaas/MatrixFS/nodeHandler"
 	"github.com/Vaaaas/MatrixFS/sysTool"
 	"github.com/golang/glog"
@@ -28,6 +27,7 @@ func main() {
 	if err != nil {
 		glog.Errorln(err)
 	}
+
 	nodeHandler.IDCounter = 0
 
 	//Pages
