@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"os"
 	"time"
-	"github.com/golang/glog"
+
 	"github.com/Vaaaas/MatrixFS/nodeHandler"
 	"github.com/Vaaaas/MatrixFS/sysTool"
-	"github.com/Vaaaas/MatrixFS/fileHandler"
+	"github.com/golang/glog"
 )
 
 func main() {
@@ -67,6 +67,7 @@ func main() {
 	}
 }
 
+//OnDeleted 节点丢失处理
 func OnDeleted(node *nodeHandler.Node) {
 	//glog.Info("OnDeleted")
 	var isEmpty = false
@@ -80,7 +81,7 @@ func OnDeleted(node *nodeHandler.Node) {
 	if isEmpty {
 		//If Empty Node Lost, delete from all & Empty Slices
 		delete(nodeHandler.AllNodes, node.ID)
-		index := fileHandler.GetFileIndexInAll(len(nodeHandler.EmptyNodes), func(i int) bool {
+		index := sysTool.GetIndexInAll(len(nodeHandler.EmptyNodes), func(i int) bool {
 			return nodeHandler.EmptyNodes[i] == node.ID
 		})
 		nodeHandler.EmptyNodes = append(nodeHandler.EmptyNodes[:index], nodeHandler.EmptyNodes[index+1:]...)
