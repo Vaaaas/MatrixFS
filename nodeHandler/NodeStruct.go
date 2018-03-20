@@ -11,6 +11,7 @@ import (
 var IDCounter uint
 
 //AllNodes key：节点ID Value：节点对象
+
 var AllNodes = make(map[uint]Node)
 
 //DataNodes 数据节点ID列表

@@ -278,8 +278,9 @@ func greetHandler(w http.ResponseWriter, r *http.Request) {
 		nodeHandler.AllNodes[node.ID] = node
 		//glog.Infof("Refresh Time : %d", sysTool.AllNodes[node.ID].LastTime)
 	} else {
-		node.ID = nodeHandler.IDCounter
 		nodeHandler.IDCounter++
+		node.ID = nodeHandler.IDCounter
+
 		glog.Infof("Hello %d\n", node.ID)
 
 		nodeHandler.EmptyNodes = append(nodeHandler.EmptyNodes, node.ID)
