@@ -1,12 +1,10 @@
 package nodeHandler
 
 import (
-	"math"
 	"net"
 
-	"github.com/golang/glog"
-	"github.com/Vaaaas/MatrixFS/fileHandler"
 	"github.com/Vaaaas/MatrixFS/sysTool"
+	"github.com/golang/glog"
 )
 
 //IDCounter ID 计数器
@@ -47,13 +45,7 @@ const (
 	GB = 1024 * MB
 )
 
-//NodeConfigured 判断节点是否已经配置
-func NodeConfigured() bool {
-	//todo : 自动设定节点
-	return len(AllNodes) != 0
-}
-
-//AppendNode 将空节点加入数据或校验节点列表
+//AppendNode Node的成员 将空节点加入数据或校验节点列表（如果全部满，则仍为空节点）
 func (node Node) AppendNode() bool {
 	if CheckDataNodeNum() > 0 {
 		EmptyToData(node.ID)
@@ -74,11 +66,7 @@ func (node Node) AppendNode() bool {
 	}
 }
 
-//AddToLost 将节点ID加入失效节点列表
-func AddToLost(nodeID uint) {
-	LostNodes = append(LostNodes, nodeID)
-}
-
+//GetIndexInDataNodes Node的成员 获取节点在所有数据节点中的index（位置）
 func (node Node) GetIndexInDataNodes() int {
 	for index, nodeID := range DataNodes {
 		if node.ID == nodeID {
@@ -89,6 +77,7 @@ func (node Node) GetIndexInDataNodes() int {
 	return 0
 }
 
+//GetIndexInRddtNodes Node的成员 获取节点在所有校验节点中的index（位置）
 func (node Node) GetIndexInRddtNodes() int {
 	for index, nodeID := range RddtNodes {
 		if node.ID == nodeID {
@@ -99,68 +88,8 @@ func (node Node) GetIndexInRddtNodes() int {
 	return 0
 }
 
-//todo : 去掉对fileHandler的依赖
-func (node Node) DetectNode(file fileHandler.File) (finished, isDataNode bool) {
-	if node.isDataNode() {
-		glog.Infof("开始检测节点ID : %d, 文件名 : %s", node.ID, file.FileFullName)
-		//var allExist = false
-		for row := 0; row <= sysTool.SysConfig.RowNum/2+1; row++ {
-			//todo:DetectNode
-			//file.Old_DetectDataFile()
-		}
-
-		return true, true
-	} else {
-		return true, false
-	}
-}
-
-//todo : 去掉对fileHandler的依赖
-//Old_DetectNode 检测节点中的文件是否全部恢复
-func (node Node) Old_DetectNode(file fileHandler.File) bool {
-	glog.Infof("开始检测节点ID : %d, 文件名 : %s", node.ID, file.FileFullName)
-	if node.isDataNode() {
-		glog.Info("被检测节点为 [DATA] Node")
-		var allExist = false
-		//todo : 外层循环错误数？
-		for faultCount := 0; faultCount < sysTool.SysConfig.FaultNum; faultCount++ {
-			if allExist {
-				break
-			}
-			allExist = true
-			for rowCount := 0; rowCount < sysTool.SysConfig.RowNum; rowCount++ {
-				var result = file.Old_DetectDataFile(node, faultCount, rowCount)
-				allExist = allExist && result
-			}
-		}
-		glog.Infof("数据节点（ID : %d, File Name : %s）恢复完成", node.ID, file.FileFullName)
-		return allExist
-	} else if node.isRddtNode() {
-		glog.Info("被检测节点为 [RDDT] Node")
-		var allExist = false
-		var rddtNum = GetIndexInRddt(node.ID)
-		var nodeCount = rddtNum * sysTool.SysConfig.RowNum % len(DataNodes)
-		var fCount = rddtNum * sysTool.SysConfig.RowNum / len(DataNodes)
-		k := (int)((fCount + 2) / 2 * (int)(math.Pow(-1, (float64)(fCount+2))))
-		for rowCount := 0; rowCount < sysTool.SysConfig.RowNum; rowCount++ {
-			allExist = true
-			var result = file.DetectRddtFile(node, k, nodeCount)
-			allExist = allExist && result
-			if nodeCount == len(DataNodes)-1 {
-				nodeCount = 0
-				fCount++
-				k = (int)((rowCount + 2) / 2 * (int)(math.Pow(-1, (float64)(rowCount+2))))
-			} else {
-				nodeCount++
-			}
-		}
-		glog.Infof("冗余节点（ID : %d, File Name : %s）恢复完成", node.ID, file.FileFullName)
-		return allExist
-	}
-	return false
-}
-
-func (node Node) isDataNode() bool {
+//IsDataNode Node的成员 判断该节点是否为数据节点
+func (node Node) IsDataNode() bool {
 	for _, nodeID := range DataNodes {
 		if node.ID == nodeID {
 			return true
@@ -169,13 +98,25 @@ func (node Node) isDataNode() bool {
 	return false
 }
 
-func (node Node) isRddtNode() bool {
+//IsRddtNode Node的成员 判断该节点是否为校验节点
+func (node Node) IsRddtNode() bool {
 	for _, nodeID := range RddtNodes {
 		if node.ID == nodeID {
 			return true
 		}
 	}
 	return false
+}
+
+//NodeConfigured 判断节点是否已经配置
+func NodeConfigured() bool {
+	//TODO: 自动设定节点
+	return len(AllNodes) != 0
+}
+
+//AddToLost 将节点ID加入失效节点列表
+func AddToLost(nodeID uint) {
+	LostNodes = append(LostNodes, nodeID)
 }
 
 //CheckDataNodeNum 确定系统还需要几个数据节点
@@ -207,3 +148,64 @@ func GetIndexInRddt(targetID uint) int {
 	}
 	return 0
 }
+
+//TODO: 去掉对fileHandler的依赖
+// func (node Node) DetectNode(file fileHandler.File) (finished, isDataNode bool) {
+// 	if node.IsDataNode() {
+// 		glog.Infof("开始检测节点ID : %d, 文件名 : %s", node.ID, file.FileFullName)
+// 		//var allExist = false
+// 		for row := 0; row <= sysTool.SysConfig.RowNum/2+1; row++ {
+// 			//TODO:DetectNode
+// 			//file.Old_DetectDataFile()
+// 		}
+
+// 		return true, true
+// 	} else {
+// 		return true, false
+// 	}
+// }
+
+//TODO: 去掉对fileHandler的依赖
+//Old_DetectNode 检测节点中的文件是否全部恢复
+// func (node Node) Old_DetectNode(file fileHandler.File) bool {
+// 	glog.Infof("开始检测节点ID : %d, 文件名 : %s", node.ID, file.FileFullName)
+// 	if node.IsDataNode() {
+// 		glog.Info("被检测节点为 [DATA] Node")
+// 		var allExist = false
+// 		//TODO: 外层循环错误数？
+// 		for faultCount := 0; faultCount < sysTool.SysConfig.FaultNum; faultCount++ {
+// 			if allExist {
+// 				break
+// 			}
+// 			allExist = true
+// 			for rowCount := 0; rowCount < sysTool.SysConfig.RowNum; rowCount++ {
+// 				var result = file.Old_DetectDataFile(node, faultCount, rowCount)
+// 				allExist = allExist && result
+// 			}
+// 		}
+// 		glog.Infof("数据节点（ID : %d, File Name : %s）恢复完成", node.ID, file.FileFullName)
+// 		return allExist
+// 	} else if node.IsRddtNode() {
+// 		glog.Info("被检测节点为 [RDDT] Node")
+// 		var allExist = false
+// 		var rddtNum = GetIndexInRddt(node.ID)
+// 		var nodeCount = rddtNum * sysTool.SysConfig.RowNum % len(DataNodes)
+// 		var fCount = rddtNum * sysTool.SysConfig.RowNum / len(DataNodes)
+// 		k := (int)((fCount + 2) / 2 * (int)(math.Pow(-1, (float64)(fCount+2))))
+// 		for rowCount := 0; rowCount < sysTool.SysConfig.RowNum; rowCount++ {
+// 			allExist = true
+// 			var result = file.DetectRddtFile(node, k, nodeCount)
+// 			allExist = allExist && result
+// 			if nodeCount == len(DataNodes)-1 {
+// 				nodeCount = 0
+// 				fCount++
+// 				k = (int)((rowCount + 2) / 2 * (int)(math.Pow(-1, (float64)(rowCount+2))))
+// 			} else {
+// 				nodeCount++
+// 			}
+// 		}
+// 		glog.Infof("冗余节点（ID : %d, File Name : %s）恢复完成", node.ID, file.FileFullName)
+// 		return allExist
+// 	}
+// 	return false
+// }

@@ -13,9 +13,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"github.com/golang/glog"
-	"github.com/Vaaaas/go-disk-usage/du"
+
 	"github.com/Vaaaas/MatrixFS/nodeHandler"
+	"github.com/Vaaaas/go-disk-usage/du"
+	"github.com/golang/glog"
 )
 
 var nodeInfo nodeHandler.Node
@@ -45,9 +46,6 @@ func main() {
 		glog.Errorln(err)
 		panic(err)
 	}
-
-	//Init ID Counter, IDCounter++ when create new Node
-	nodeHandler.IDCounter = 0
 
 	//Init Master & Node Address
 	MasterAdd, err = net.ResolveTCPAddr("tcp4", master)
@@ -87,6 +85,7 @@ func main() {
 	http.HandleFunc("/delete", deleteHandler)
 	http.HandleFunc("/resetid", resetIDHandler)
 
+	//TODO: 使用FileServer，不确定是否并行处理每个请求
 	http.Handle("/download/", http.StripPrefix("/download/", http.FileServer(http.Dir(StorePath))))
 
 	if err := http.ListenAndServe(":"+strconv.Itoa(NodeAdd.Port), nil); err != nil {

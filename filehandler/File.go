@@ -1,4 +1,4 @@
-package fileHandler
+package filehandler
 
 import (
 	"errors"
@@ -6,13 +6,14 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/golang/glog"
 	"github.com/Vaaaas/MatrixFS/sysTool"
+	"github.com/golang/glog"
 )
 
 //AllFiles 所有文件对象列表
 var AllFiles []File
 
+//File 文件类
 type File struct {
 	FileFullName string
 	Size         int64
@@ -31,21 +32,26 @@ func FindFileInAll(name string) *File {
 	return nil
 }
 
-//FileExisted 查看某个文件是否在磁盘中存在
-func FileExisted(path string) bool {
-	_, err := os.Stat(path)
+//FileExistedInCenter 查看某个文件是否在磁盘中存在
+func FileExistedInCenter(filePath string) bool {
+	_, err := os.Stat(filePath)
 	return !os.IsNotExist(err)
 }
 
+//FileExistInNode 查看某个文件能否从节点获取
+func FileExistInNode(file File, isData bool, nodeID uint, posiX, posiY, rddtNodePos int) bool {
+	return getOneFile(file, isData, nodeID, posiX, posiY, rddtNodePos)
+}
+
 //StructSliceFileName 利用存储根目录，原始文件名，数据/校验，存储节点编号，数据节点编号/斜率，行号/起始数据节点编号构建存储路径
-func StructSliceFileName(storagePosition string, isDataSlice bool, nodeNum int, fileName string, varNum1 int, varNum2 int) string {
+func StructSliceFileName(storagePosition string, isDataSlice bool, nodePos int, fileName string, dataNodeNumK int, rowStartDataPos int) string {
 	var dataOrRddt string
 	if isDataSlice {
 		dataOrRddt = "Data."
 	} else {
 		dataOrRddt = "Rddt."
 	}
-	return "./" + storagePosition + "/" + dataOrRddt + strconv.Itoa(nodeNum) + "/" + fileName + "." + strconv.Itoa(varNum1) + strconv.Itoa(varNum2)
+	return "./" + storagePosition + "/" + dataOrRddt + strconv.Itoa(nodePos) + "/" + fileName + "." + strconv.Itoa(dataNodeNumK) + strconv.Itoa(rowStartDataPos)
 }
 
 //Init 初始化文件对象
@@ -90,7 +96,7 @@ func (file File) SliceFileName() (string, string) {
 			}
 			name := make([]byte, n-1)
 			bp := copy(name, slices[0])
-			for _, s := range slices[1: len(slices)-1] {
+			for _, s := range slices[1 : len(slices)-1] {
 				bp += copy(name[bp:], ".")
 				bp += copy(name[bp:], s)
 			}
@@ -103,4 +109,3 @@ func (file File) SliceFileName() (string, string) {
 	glog.Error("分割文件名失败：未定义文件名")
 	return "", ""
 }
-

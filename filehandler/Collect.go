@@ -1,4 +1,4 @@
-package fileHandler
+package filehandler
 
 import (
 	"io"
@@ -7,9 +7,9 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/golang/glog"
 	"github.com/Vaaaas/MatrixFS/nodeHandler"
 	"github.com/Vaaaas/MatrixFS/sysTool"
+	"github.com/golang/glog"
 )
 
 //CollectFiles 从存储节点收集全部分块文件到中心节点
@@ -26,7 +26,6 @@ func (file File) CollectFiles() {
 			}
 		}
 	}
-
 	if file.Size <= 1000 {
 		for i := 0; i < sysTool.SysConfig.RddtNum; i++ {
 			//只需要第一个
@@ -59,22 +58,24 @@ func (file File) CollectFiles() {
 	}
 }
 
-func getOneFile(file File, isData bool, nodeID uint, posiX, posiY, nodeCounter int) {
+func getOneFile(file File, isData bool, nodeID uint, posiX, posiY, rddtNodePos int) bool {
 	var filePath string
 	var fileName = file.FileFullName + "." + strconv.Itoa((int)(posiX)) + strconv.Itoa(posiY)
 	if isData {
 		filePath = StructSliceFileName("temp", true, posiX, file.FileFullName, posiX, posiY)
 	} else {
-		filePath = StructSliceFileName("temp", false, nodeCounter, file.FileFullName, posiX, posiY)
+		filePath = StructSliceFileName("temp", false, rddtNodePos, file.FileFullName, posiX, posiY)
 	}
-
 	glog.Infof("从节点收集文件 filePath : %s, fileName : %s", filePath, fileName)
-
 	url := "http://" + nodeHandler.AllNodes[nodeID].Address.String() + ":" + strconv.Itoa(nodeHandler.AllNodes[nodeID].Port) + "/download/" + fileName
 	glog.Infof("获取文件的URL : %s", url)
 	res, _ := http.Get(url)
+	if res.StatusCode != 200 {
+		return false
+	}
 	fileGet, _ := os.Create(filePath)
 	defer fileGet.Close()
 	io.Copy(fileGet, res.Body)
 	glog.Info(res.Status)
+	return true
 }

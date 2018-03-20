@@ -10,10 +10,12 @@ import (
 	"strconv"
 	"time"
 
+	"sync"
+
+	"github.com/Vaaaas/MatrixFS/filehandler"
+	"github.com/Vaaaas/MatrixFS/nodeHandler"
 	"github.com/Vaaaas/MatrixFS/sysTool"
 	"github.com/golang/glog"
-	"github.com/Vaaaas/MatrixFS/nodeHandler"
-	"github.com/Vaaaas/MatrixFS/fileHandler"
 )
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {
@@ -49,7 +51,7 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 func indexPageHandler(w http.ResponseWriter, r *http.Request) {
 	if sysTool.SysConfigured() {
 		if !nodeHandler.NodeConfigured() {
-			glog.Infoln("URL: " + r.URL.Path + " Node not configured, redirect to nnode.html")
+			glog.Infoln("URL: " + r.URL.Path + " Node not configured, redirect to node.html")
 			http.Redirect(w, r, "/node", http.StatusFound)
 		} else {
 			glog.Infoln("URL: " + r.URL.Path + " configured, redirect to file.html")
@@ -85,7 +87,7 @@ func nodeEnterHandler(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				glog.Error("rowNumber参数转换为int失败")
 			}
-			//todo : 初始化系统设定后, 上传文件前仍然需要确认存储节点
+			//TODO: 初始化系统设定后, 上传文件前仍然需要确认存储节点?
 			sysTool.InitConfig(faultNum, rowNum)
 		}
 	}
@@ -118,7 +120,7 @@ func filePageHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		glog.Errorln(err)
 	}
-	t.Execute(w, fileHandler.AllFiles)
+	t.Execute(w, filehandler.AllFiles)
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
@@ -173,25 +175,26 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		glog.Infoln("[Form-File_Name]" + r.Form["fileName"][0])
 		fileName := r.Form["fileName"][0]
-		targetFile := fileHandler.FindFileInAll(fileName)
+		targetFile := filehandler.FindFileInAll(fileName)
 		targetFile.CollectFiles()
 		if sysTool.SysConfig.Status == false {
-			var recFinish = true
-			for index := range nodeHandler.LostNodes {
-				var result bool
-				glog.Infof("需要检测节点 ID : %d", nodeHandler.LostNodes[index])
-				result = nodeHandler.AllNodes[nodeHandler.LostNodes[index]].Old_DetectNode(*targetFile)
-				recFinish = recFinish && result
-			}
-			for !recFinish {
-				recFinish = true
-				for index := range nodeHandler.LostNodes {
-					var result bool
-					glog.Infof("需要检测节点 ID : %d", nodeHandler.LostNodes[index])
-					result = nodeHandler.AllNodes[nodeHandler.LostNodes[index]].Old_DetectNode(*targetFile)
-					recFinish = recFinish && result
-				}
-			}
+			//TODO: 降级读
+			// var recFinish = true
+			// for index := range nodeHandler.LostNodes {
+			// 	var result bool
+			// 	glog.Infof("需要检测节点 ID : %d", nodeHandler.LostNodes[index])
+			// 	result = nodeHandler.AllNodes[nodeHandler.LostNodes[index]].Old_DetectNode(*targetFile)
+			// 	recFinish = recFinish && result
+			// }
+			// for !recFinish {
+			// 	recFinish = true
+			// 	for index := range nodeHandler.LostNodes {
+			// 		var result bool
+			// 		glog.Infof("需要检测节点 ID : %d", nodeHandler.LostNodes[index])
+			// 		result = nodeHandler.AllNodes[nodeHandler.LostNodes[index]].Old_DetectNode(*targetFile)
+			// 		recFinish = recFinish && result
+			// 	}
+			// }
 		}
 		targetFile.GetFile("temp/")
 		w.Header().Set("Content-Disposition", "attachment; filename="+fileName)
@@ -213,22 +216,22 @@ func deleteHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		glog.Infoln("[Form-File_Name]" + r.Form["fileName"][0])
 		fileName := r.Form["fileName"][0]
-		targetFile := fileHandler.FindFileInAll(fileName)
+		targetFile := filehandler.FindFileInAll(fileName)
 		targetFile.DeleteSlices()
 		targetFile.DeleteAllTempFiles()
-		index := sysTool.GetIndexInAll(len(fileHandler.AllFiles), func(i int) bool {
-			return fileHandler.AllFiles[i].FileFullName == targetFile.FileFullName
+		index := sysTool.GetIndexInAll(len(filehandler.AllFiles), func(i int) bool {
+			return filehandler.AllFiles[i].FileFullName == targetFile.FileFullName
 		})
-		fileHandler.AllFiles = append(fileHandler.AllFiles[:index], fileHandler.AllFiles[index+1:]...)
+		filehandler.AllFiles = append(filehandler.AllFiles[:index], filehandler.AllFiles[index+1:]...)
 		glog.Infoln("[Download] " + targetFile.FileFullName + " Finished")
 		http.Redirect(w, r, "/file", http.StatusFound)
 	}
 
 }
 
-func fileHandle(source string) *fileHandler.File {
+func fileHandle(source string) *filehandler.File {
 	glog.Infoln("Start FileHandler")
-	var file01 fileHandler.File
+	var file01 filehandler.File
 	//分析原始文件属性
 	file01.Init(source)
 	//分割文件名
@@ -275,8 +278,8 @@ func greetHandler(w http.ResponseWriter, r *http.Request) {
 		nodeHandler.AllNodes[node.ID] = node
 		//glog.Infof("Refresh Time : %d", sysTool.AllNodes[node.ID].LastTime)
 	} else {
-		nodeHandler.IDCounter++
 		node.ID = nodeHandler.IDCounter
+		nodeHandler.IDCounter++
 		glog.Infof("Hello %d\n", node.ID)
 
 		nodeHandler.EmptyNodes = append(nodeHandler.EmptyNodes, node.ID)
@@ -367,16 +370,23 @@ func restoreHandler(w http.ResponseWriter, r *http.Request) {
 			glog.Infof("用于恢复的节点ID : %d", newNode.ID)
 		}
 
-		//todo : 循环所有文件，为每个文件开一个线程用于恢复
-		//for _, file := range AllFiles {
-		//	go func(){
-		//
-		//		var recFinish = true
-		//
-		//	}()
-		//
-		//}
-			fileHandler.Old_LostHandle()
+		//TODO: 开始解码恢复 循环所有文件，为每个文件开一个线程用于恢复
+		var waitGroup sync.WaitGroup
+
+		for _, file := range filehandler.AllFiles {
+			waitGroup.Add(1)
+			go func() {
+				defer waitGroup.Done()
+				//执行对单个文件的恢复
+				file.LostHandle()
+			}()
+
+		}
+
+		//fileHandler.Old_LostHandle()
+
+		//阻塞，等待全部文件恢复完成
+		waitGroup.Wait()
 
 		//恢复完成，丢失节点状态设为正常
 		for i := 0; i < len(nodeHandler.LostNodes); i++ {

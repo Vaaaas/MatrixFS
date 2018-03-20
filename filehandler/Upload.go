@@ -1,4 +1,4 @@
-package fileHandler
+package filehandler
 
 import (
 	"bytes"
@@ -10,23 +10,22 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/Vaaaas/MatrixFS/nodeHandler"
 	"github.com/Vaaaas/MatrixFS/sysTool"
 	"github.com/golang/glog"
-	"github.com/Vaaaas/MatrixFS/nodeHandler"
 )
 
 //复制文件，可用于生成数据副本和校验副本
 func (file File) copyFile(isData bool, col int, sourceFile *os.File) error {
 	//构造副本文件名
-	fileName := StructSliceFileName("temp", isData, col, file.FileFullName, col, 0)
+	filePath := StructSliceFileName("temp", isData, col, file.FileFullName, col, 0)
 	//打开副本文件
-	outFile, err := os.OpenFile(fileName, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, os.ModePerm)
+	outFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		glog.Error("新建副本文件失败 " + strconv.Itoa(col) + "/" + file.FileFullName + "." + strconv.Itoa(col) + strconv.Itoa(0))
 		panic(err)
 	}
 	defer outFile.Close()
-
 	buffer := make([]byte, file.SliceSize)
 	//将原始文件读入buffer
 	_, err = sourceFile.Read(buffer)
@@ -34,7 +33,6 @@ func (file File) copyFile(isData bool, col int, sourceFile *os.File) error {
 		glog.Errorf("buffer读取文件失败 col=%d", col, 0)
 		panic(err)
 	}
-
 	//将buffer写入副本文件
 	if _, err := outFile.Write(buffer[:file.SliceSize]); err != nil {
 		glog.Errorf("复制文件失败 col=%d", col)
@@ -53,7 +51,6 @@ func (file File) InitDataFiles() error {
 		panic(err)
 	}
 	defer sourceFile.Close()
-
 	if file.Size <= 1000 {
 		//原始文件大小不大于1000 Byte
 		for i := 0; i < sysTool.SysConfig.DataNum; i++ {
@@ -75,7 +72,6 @@ func (file File) InitDataFiles() error {
 			}
 		}
 	}
-
 	sourceFile.Close()
 	return nil
 }
@@ -83,24 +79,20 @@ func (file File) InitDataFiles() error {
 //生成一个数据分块
 func (file File) initOneDataFile(col int, row int, sourceFile *os.File) error {
 	//构造分块文件名
-	fileName := StructSliceFileName("temp", true, col, file.FileFullName, col, row)
+	filePath := StructSliceFileName("temp", true, col, file.FileFullName, col, row)
 	//建立分块文件
-	outFile, err := os.OpenFile(fileName, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, os.ModePerm)
+	outFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		glog.Error("新建数据分块文件失败 " + "./temp/Data." + strconv.Itoa(col) + "/" + file.FileFullName + "." + strconv.Itoa(col) + strconv.Itoa(row))
 		panic(err)
 	}
 	defer outFile.Close()
-
 	//初始化数据buffer 变量
 	buffer := make([]byte, file.SliceSize)
-
 	//判断哪一个分块是原始数据文件的结尾，那么该分块仍需要读取文件，剩下的分块就只需要填充
 	fillSliceCount := (int)(file.FillSize/file.SliceSize) + 1
-
 	if file.FillLast && row*sysTool.SysConfig.DataNum+col == sysTool.SysConfig.SliceNum-fillSliceCount {
 		//需要补充 && 第一个补充分块混合原文件和0
-
 		//先读取原文件中剩余的数据
 		n, err := sourceFile.Read(buffer)
 		if err != nil && err != io.EOF {
@@ -129,7 +121,6 @@ func (file File) initOneDataFile(col int, row int, sourceFile *os.File) error {
 			panic(err)
 		}
 	}
-
 	//将buffer 中的数据写入文件
 	if _, err := outFile.Write(buffer[:file.SliceSize]); err != nil {
 		glog.Errorf("写入数据分块失败 col=%d row=%d", col, row)
@@ -176,20 +167,17 @@ func (file File) InitRddtFiles() error {
 }
 
 //具体编码生成某个校验文件
-func (file File) initOneRddtFile(startFolderNum, k, rddtNum int) error {
-	filePath := StructSliceFileName("temp", false, rddtNum, file.FileFullName, k, startFolderNum)
+func (file File) initOneRddtFile(startNodeNum, k, rddtNodePos int) error {
+	filePath := StructSliceFileName("temp", false, rddtNodePos, file.FileFullName, k, startNodeNum)
 	rddtFileObj, err := os.OpenFile(filePath, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, os.ModePerm)
-
 	if err != nil {
 		glog.Error("新建冗余分块文件失败 " + filePath)
 		panic(err)
 	}
 	defer rddtFileObj.Close()
-
 	buffer := make([]byte, file.SliceSize)
-
 	for i := 0; i < sysTool.SysConfig.RowNum; i++ {
-		folderPosi := startFolderNum + k*i
+		folderPosi := startNodeNum + k*i
 		if folderPosi >= sysTool.SysConfig.DataNum {
 			folderPosi = folderPosi - sysTool.SysConfig.DataNum
 		} else if folderPosi < 0 {
@@ -246,7 +234,6 @@ func (file File) SendToNode() {
 			}
 		}
 	}
-
 	//发送校验分块
 	if file.Size <= 1000 {
 		for i := 0; i < sysTool.SysConfig.RddtNum; i++ {
@@ -382,7 +369,6 @@ func (file File) GetFile(targetFolder string) error {
 				glog.Error("buffer读取文件失败 " + strconv.Itoa(i))
 				panic(err)
 			}
-
 			//判断哪一个分块是原始数据文件的结尾，那么该分块仍需要读取文件，剩下的分块就只需要填充
 			fillSliceCount := (int)(file.FillSize/file.SliceSize) + 1
 			if file.FillLast && rowPosition*sysTool.SysConfig.DataNum+dataPosition == sysTool.SysConfig.SliceNum-fillSliceCount {

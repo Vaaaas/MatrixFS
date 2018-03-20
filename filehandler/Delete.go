@@ -1,4 +1,4 @@
-package fileHandler
+package filehandler
 
 import (
 	"io/ioutil"
@@ -96,7 +96,7 @@ func (file File) DeleteAllTempFiles() error {
 	file.deleteTempDataFiles()
 	file.deleteTempRddtFiles()
 	//删除原始文件副本
-	if !FileExisted("temp/" + file.FileFullName) {
+	if !FileExistedInCenter("temp/" + file.FileFullName) {
 		glog.Warningf("[File to Delete NOT EXIST] temp/" + file.FileFullName)
 	} else {
 		err := os.Remove("temp/" + file.FileFullName)
@@ -113,10 +113,11 @@ func (file File) deleteTempDataFiles() error {
 	for i := 0; i < sysTool.SysConfig.DataNum; i++ {
 		if file.Size <= 1000 {
 			//删除副本
-			if !FileExisted("temp/Data." + strconv.Itoa(i) + "/" + file.FileFullName + "." + strconv.Itoa(i) + strconv.Itoa(0)) {
+			filePath := StructSliceFileName("temp", true, i, file.FileFullName, i, 0)
+			if !FileExistedInCenter(filePath) {
 				glog.Warningf("[File to Delete NOT EXIST] temp/Data.%d/%s.%d%d ", i, file.FileFullName, i, 0)
 			} else {
-				err := os.Remove("temp/Data." + strconv.Itoa(i) + "/" + file.FileFullName + "." + strconv.Itoa(i) + strconv.Itoa(0))
+				err := os.Remove(filePath)
 				if err != nil {
 					glog.Errorln(err)
 				} else {
@@ -125,10 +126,11 @@ func (file File) deleteTempDataFiles() error {
 			}
 		} else {
 			for j := 0; j < sysTool.SysConfig.RowNum; j++ {
-				if !FileExisted("temp/Data." + strconv.Itoa(i) + "/" + file.FileFullName + "." + strconv.Itoa(i) + strconv.Itoa(j)) {
+				filePath := StructSliceFileName("temp", true, i, file.FileFullName, i, j)
+				if !FileExistedInCenter(filePath) {
 					glog.Warningf("[File to Delete NOT EXIST] temp/Data.%d/%s.%d%d ", i, file.FileFullName, i, j)
 				} else {
-					err := os.Remove("temp/Data." + strconv.Itoa(i) + "/" + file.FileFullName + "." + strconv.Itoa(i) + strconv.Itoa(j))
+					err := os.Remove(filePath)
 					if err != nil {
 						glog.Errorln(err)
 					} else {
@@ -144,10 +146,11 @@ func (file File) deleteTempDataFiles() error {
 func (file File) deleteTempRddtFiles() error {
 	if file.Size <= 1000 {
 		for i := 0; i < sysTool.SysConfig.RddtNum; i++ {
-			if !FileExisted("temp/Rddt." + strconv.Itoa(i) + "/" + file.FileFullName + "." + strconv.Itoa(i) + strconv.Itoa(0)) {
+			filePath := StructSliceFileName("temp", false, i, file.FileFullName, i, 0)
+			if !FileExistedInCenter(filePath) {
 				glog.Warningf("[File to Delete NOT EXIST] temp/Rddt.%d/%s.%d%d ", i, file.FileFullName, i, 0)
 			} else {
-				err := os.Remove("temp/Rddt." + strconv.Itoa(i) + "/" + file.FileFullName + "." + strconv.Itoa(i) + strconv.Itoa(0))
+				err := os.Remove(filePath)
 				if err != nil {
 					glog.Errorln(err)
 				} else {
@@ -162,10 +165,11 @@ func (file File) deleteTempRddtFiles() error {
 		for i := 0; i < sysTool.SysConfig.FaultNum; i++ {
 			k := (int)((i + 2) / 2 * (int)(math.Pow(-1, (float64)(i+2))))
 			for fileCounter < sysTool.SysConfig.DataNum {
-				if !FileExisted("temp/Rddt." + strconv.Itoa(nodeCounter) + "/" + file.FileFullName + "." + strconv.Itoa(k) + strconv.Itoa(fileCounter)) {
+				filePath := StructSliceFileName("temp", false, i, file.FileFullName, k, fileCounter)
+				if !FileExistedInCenter(filePath) {
 					glog.Warningf("[File to Delete NOT EXIST] temp/Rddt.%d/%s.%d%d ", nodeCounter, file.FileFullName, k, fileCounter)
 				} else {
-					err := os.Remove("temp/Rddt." + strconv.Itoa(nodeCounter) + "/" + file.FileFullName + "." + strconv.Itoa(k) + strconv.Itoa(fileCounter))
+					err := os.Remove(filePath)
 					if err != nil {
 						glog.Errorln(err)
 					} else {
@@ -186,6 +190,5 @@ func (file File) deleteTempRddtFiles() error {
 			}
 		}
 	}
-
 	return nil
 }
