@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 mkdir -p $HOME/MatrixFS/node;
-#go build -i -o $HOME/MatrixFS/node/node github.com/Vaaaas/MatrixFS/node;
+go build -i -o $HOME/MatrixFS/node/node github.com/Vaaaas/MatrixFS/node;
 cd $HOME/MatrixFS/node;
 port=9090
 for k in $( seq 0 31 )
