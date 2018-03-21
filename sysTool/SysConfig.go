@@ -23,11 +23,12 @@ func SysConfigured() bool {
 	return SysConfig.FaultNum != 0 && SysConfig.RowNum != 0
 }
 
+//TODO: 应该返回值bool
 //InitConfig 初始化容错数和行数配置
 func InitConfig(fault, row int) {
 	if fault <= 1 || row <= 1 {
 		glog.Error("行数和容错数都应大于1")
-		panic("行数和容错数都应大于1")
+		//panic("行数和容错数都应大于1")
 	} else {
 		SysConfig.FaultNum = fault
 		SysConfig.RowNum = row
