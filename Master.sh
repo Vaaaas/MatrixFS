@@ -5,6 +5,4 @@ mkdir -p $HOME/MatrixFS/master/view/ && cp -rf $GOPATH/src/github.com/Vaaaas/Mat
 cp -f $GOPATH/src/github.com/Vaaaas/MatrixFS/matrix/favicon.ico $HOME/MatrixFS/master/favicon.ico;
 go build -i -o $HOME/MatrixFS/master/master github.com/Vaaaas/MatrixFS/matrix;
 cd $HOME/MatrixFS/master;
-mkdir log;
-mkdir temp;
 ./master -log_dir=./log -alsologtostderr=true
