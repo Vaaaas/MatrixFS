@@ -2,7 +2,6 @@ package filehandler
 
 import (
 	"io"
-	"math"
 	"net/http"
 	"os"
 	"strconv"
