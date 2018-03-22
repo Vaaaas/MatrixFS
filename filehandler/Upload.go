@@ -383,7 +383,7 @@ func (file File) GetFile(targetFolder string) error {
 			}
 			//判断哪一个分块是原始数据文件的结尾，那么该分块仍需要读取文件，剩下的分块就只需要填充
 			fillSliceCount := (int)(file.FillSize/file.SliceSize) + 1
-			glog.Infof("[fillSliceCount]file.FillSize/file.SliceSize + 1 = %d",fillSliceCount)
+			//glog.Infof("[fillSliceCount]file.FillSize/file.SliceSize + 1 = %d",fillSliceCount)
 			if file.FillLast && dataPosition*sysTool.SysConfig.RowNum+rowPosition == sysTool.SysConfig.SliceNum-fillSliceCount {
 				//需要补充 && 第一个补充分块混合原文件和0
 				bufferNeeded := file.Size%file.SliceSize
