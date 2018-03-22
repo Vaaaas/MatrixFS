@@ -190,7 +190,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		fileName := r.Form["fileName"][0]
 		targetFile := filehandler.AllFiles.Get(fileName).(*filehandler.File)
-		glog.Infoln("[DOWNLOAD]FullName is :")
+		glog.Infoln("[DOWNLOAD]开始收集数据分块 FullName is :"+fileName)
 		targetFile.CollectFiles()
 		glog.Infoln("[DOWNLOAD]收集数据分块完成")
 		if sysTool.SysConfig.Status == false {
@@ -212,8 +212,9 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 			// 	}
 			// }
 		}
+		glog.Infoln("[DOWNLOAD]开始将数据分块写入副本")
 		targetFile.GetFile("temp/")
-		glog.Infoln("[DOWNLOAD]数据分块写入副本完成完成")
+		glog.Infoln("[DOWNLOAD]数据分块写入副本完成")
 		w.Header().Set("Content-Disposition", "attachment; filename="+targetFile.FileFullName)
 		w.Header().Set("Content-Type", r.Header.Get("Content-Type"))
 		http.ServeFile(w, r, "temp/"+targetFile.FileFullName)
@@ -252,12 +253,15 @@ func fileHandle(source string) *filehandler.File {
 	name, ext := file01.SliceFileName()
 	glog.Infof("File %s.%s init finished", name,ext)
 	//生成数据分块阵列
+	glog.Infoln("[处理上传文件]开始生成数据阵列")
 	file01.InitDataFiles()
 	glog.Infoln("[处理上传文件]生成数据阵列完成")
 	//编码生成校验分块阵列
+	glog.Infoln("[处理上传文件]开始生成校验阵列")
 	file01.InitRddtFiles()
 	glog.Infoln("[处理上传文件]生成校验阵列完成")
 	//将分块文件发送至存储节点
+	glog.Infoln("[处理上传文件]开始发送分块阵列至节点")
 	file01.SendToNode()
 	glog.Infoln("[处理上传文件]发送分块阵列至节点完成")
 	return &file01
