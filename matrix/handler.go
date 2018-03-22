@@ -91,15 +91,24 @@ func nodeEnterHandler(w http.ResponseWriter, r *http.Request) {
 			sysTool.InitConfig(faultNum, rowNum)
 		}
 	}
+	allNodesListTemp:=nodeHandler.AllNodes.Items()
+	var resultMap =make(map[uint]nodeHandler.Node)
+	for key, value := range allNodesListTemp {
+		converted, ok := value.(nodeHandler.Node)
+		key,_:=key.(uint)
+		if ok {
+			resultMap[key] = converted
+		}
+	}
 	data := struct {
 		Nodes        map[uint]nodeHandler.Node
 		SystemStatus bool
 	}{
-		Nodes:        nodeHandler.AllNodes,
+		Nodes:        resultMap,
 		SystemStatus: sysTool.SysConfig.Status,
 	}
 
-	glog.Infof("System Status : %s, Length of AllNodes : %d", strconv.FormatBool(sysTool.SysConfig.Status), len(nodeHandler.AllNodes))
+	glog.Infof("System Status : %s, Length of AllNodes : %d", strconv.FormatBool(sysTool.SysConfig.Status), nodeHandler.AllNodes.Count())
 	t, err := template.ParseFiles("view/node.html")
 	if err != nil {
 		glog.Errorln(err)
@@ -115,12 +124,19 @@ func filePageHandler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/index", http.StatusFound)
 		return
 	}
-	//glog.Infof("Length of AllFiles : %d", len(sysTool.AllFiles))
+	glog.Infof("Length of AllFiles : %d", filehandler.AllFiles.Count())
+	allFileListTemp:=filehandler.AllFiles.Items()
+	var resultList []*filehandler.File
+	for _, value := range allFileListTemp {
+		result := value.(*filehandler.File)
+		resultList = append(resultList,result)
+		glog.Infoln("[Show File Page]File name Value: "+result.FileFullName)
+	}
 	t, err := template.ParseFiles("view/file.html")
 	if err != nil {
 		glog.Errorln(err)
 	}
-	t.Execute(w, filehandler.AllFiles)
+	t.Execute(w, resultList)
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
@@ -159,7 +175,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		file.Close()
 		//删除所有临时文件
 		file01.DeleteAllTempFiles()
-		glog.Infof("File upload & init finished, redirect to file page : %s, Content-Type: %s", handler.Filename, r.Header.Get("Content-Type"))
+		glog.Infof("File upload & init finished %s, Content-Type: %s", handler.Filename, r.Header.Get("Content-Type"))
 		http.Redirect(w, r, "/file", http.StatusFound)
 	}
 }
@@ -175,7 +191,8 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		glog.Infoln("[Form-File_Name]" + r.Form["fileName"][0])
 		fileName := r.Form["fileName"][0]
-		targetFile := filehandler.FindFileInAll(fileName)
+		targetFile := filehandler.AllFiles.Get(fileName).(*filehandler.File)
+		glog.Infoln("[Target File Struct]FullName is :")
 		targetFile.CollectFiles()
 		if sysTool.SysConfig.Status == false {
 			//TODO: 降级读
@@ -183,7 +200,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 			// for index := range nodeHandler.LostNodes {
 			// 	var result bool
 			// 	glog.Infof("需要检测节点 ID : %d", nodeHandler.LostNodes[index])
-			// 	result = nodeHandler.AllNodes[nodeHandler.LostNodes[index]].Old_DetectNode(*targetFile)
+			// 	result = nodeHandler.safeMap[nodeHandler.LostNodes[index]].Old_DetectNode(*targetFile)
 			// 	recFinish = recFinish && result
 			// }
 			// for !recFinish {
@@ -191,15 +208,15 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 			// 	for index := range nodeHandler.LostNodes {
 			// 		var result bool
 			// 		glog.Infof("需要检测节点 ID : %d", nodeHandler.LostNodes[index])
-			// 		result = nodeHandler.AllNodes[nodeHandler.LostNodes[index]].Old_DetectNode(*targetFile)
+			// 		result = nodeHandler.safeMap[nodeHandler.LostNodes[index]].Old_DetectNode(*targetFile)
 			// 		recFinish = recFinish && result
 			// 	}
 			// }
 		}
 		targetFile.GetFile("temp/")
-		w.Header().Set("Content-Disposition", "attachment; filename="+fileName)
+		w.Header().Set("Content-Disposition", "attachment; filename="+targetFile.FileFullName)
 		w.Header().Set("Content-Type", r.Header.Get("Content-Type"))
-		http.ServeFile(w, r, "temp/"+fileName)
+		http.ServeFile(w, r, "temp/"+targetFile.FileFullName)
 		targetFile.DeleteAllTempFiles()
 		glog.Infoln("[Download] " + targetFile.FileFullName + " Finished, Content-Type: " + r.Header.Get("Content-Type"))
 	}
@@ -216,13 +233,10 @@ func deleteHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		glog.Infoln("[Form-File_Name]" + r.Form["fileName"][0])
 		fileName := r.Form["fileName"][0]
-		targetFile := filehandler.FindFileInAll(fileName)
+		targetFile := filehandler.AllFiles.Get(fileName).(*filehandler.File)
 		targetFile.DeleteSlices()
 		targetFile.DeleteAllTempFiles()
-		index := sysTool.GetIndexInAll(len(filehandler.AllFiles), func(i int) bool {
-			return filehandler.AllFiles[i].FileFullName == targetFile.FileFullName
-		})
-		filehandler.AllFiles = append(filehandler.AllFiles[:index], filehandler.AllFiles[index+1:]...)
+		filehandler.AllFiles.Delete(targetFile.FileFullName)
 		glog.Infoln("[Download] " + targetFile.FileFullName + " Finished")
 		http.Redirect(w, r, "/file", http.StatusFound)
 	}
@@ -270,23 +284,23 @@ func greetHandler(w http.ResponseWriter, r *http.Request) {
 	if existed {
 		//glog.Infof("Node [%d] already Existed", node.ID)
 		var volume = node.Volume
-		node = nodeHandler.AllNodes[node.ID]
+		node = nodeHandler.AllNodes.Get(node.ID).(nodeHandler.Node)
 		node.Volume = volume
 		//node.Status = true
 		//glog.Infof("Before Time : %d", node.LastTime)
 		node.LastTime = time.Now().UnixNano() / 1000000
-		nodeHandler.AllNodes[node.ID] = node
-		//glog.Infof("Refresh Time : %d", sysTool.AllNodes[node.ID].LastTime)
+		nodeHandler.AllNodes.Set(node.ID,node)
+		//glog.Infof("Refresh Time : %d", sysTool.safeMap[node.ID].LastTime)
 	} else {
-		nodeHandler.IDCounter++
-		node.ID = nodeHandler.IDCounter
+		nodeHandler.IDCounter.PlusSafeID()
+		node.ID = nodeHandler.IDCounter.GetSafeID()
 
 		glog.Infof("Hello %d\n", node.ID)
 
 		nodeHandler.EmptyNodes = append(nodeHandler.EmptyNodes, node.ID)
 		node.LastTime = time.Now().UnixNano() / 1000000
 
-		nodeHandler.AllNodes[node.ID] = node
+		nodeHandler.AllNodes.Set(node.ID,node)
 
 		if !node.AppendNode() {
 			glog.Infof("Still in Empty Slice %+v", node)
@@ -338,8 +352,10 @@ func restoreHandler(w http.ResponseWriter, r *http.Request) {
 			prevLostID := nodeHandler.LostNodes[i]
 			empID := nodeHandler.EmptyNodes[i]
 
+			//node : 空节点对象
+			node := nodeHandler.AllNodes.Get(empID).(nodeHandler.Node)
 			//生成url
-			url := "http://" + nodeHandler.AllNodes[empID].Address.String() + ":" + strconv.Itoa(nodeHandler.AllNodes[empID].Port) + "/resetid"
+			url := "http://" + node.Address.String() + ":" + strconv.Itoa(node.Port) + "/resetid"
 			glog.Info("[Reset ID] URL " + url)
 
 			//向空节点发送重设ID请求
@@ -364,41 +380,41 @@ func restoreHandler(w http.ResponseWriter, r *http.Request) {
 			glog.Info(string(respBody))
 			glog.Infof("空节点 ID : %d, 丢失节点ID : %d", empID, prevLostID)
 			//转化完成，得到新节点信息
-			newNode := nodeHandler.AllNodes[empID]
-			newNode.ID = prevLostID
-			newNode.Status = false
-			nodeHandler.AllNodes[prevLostID] = newNode
-			glog.Infof("用于恢复的节点ID : %d", newNode.ID)
+			node.ID = prevLostID
+			node.Status = false
+			nodeHandler.AllNodes.Set(prevLostID,node)
+			glog.Infof("用于恢复的节点ID : %d", node.ID)
 		}
 
 		//TODO: 开始解码恢复 循环所有文件，为每个文件开一个线程用于恢复
 		var waitGroup sync.WaitGroup
 
-		for _, file := range filehandler.AllFiles {
-			waitGroup.Add(1)
-			go func() {
-				defer waitGroup.Done()
-				//执行对单个文件的恢复
-				file.LostHandle()
-			}()
-
+		allFileListTemp:=filehandler.AllFiles.Items()
+		for _, value := range allFileListTemp {
+			converted, ok := value.(filehandler.File)
+			if ok {
+				waitGroup.Add(1)
+				go func() {
+					defer waitGroup.Done()
+					//执行对单个文件的恢复
+					converted.LostHandle()
+				}()
+			}
 		}
-
-		//fileHandler.Old_LostHandle()
 
 		//阻塞，等待全部文件恢复完成
 		waitGroup.Wait()
 
 		//恢复完成，丢失节点状态设为正常
 		for i := 0; i < len(nodeHandler.LostNodes); i++ {
-			node := nodeHandler.AllNodes[nodeHandler.LostNodes[i]]
+			node := nodeHandler.AllNodes.Get(nodeHandler.LostNodes[i]).(nodeHandler.Node)
 			node.Status = true
-			nodeHandler.AllNodes[nodeHandler.LostNodes[i]] = node
+			nodeHandler.AllNodes.Set(nodeHandler.LostNodes[i],node)
 		}
 
 		//删除已转化的空节点
 		for i := 0; i < len(nodeHandler.LostNodes); i++ {
-			delete(nodeHandler.AllNodes, nodeHandler.EmptyNodes[0])
+			nodeHandler.AllNodes.Delete(nodeHandler.EmptyNodes[0])
 			nodeHandler.EmptyNodes = append(nodeHandler.EmptyNodes[:0], nodeHandler.EmptyNodes[1:]...)
 		}
 		//清空失效节点列表

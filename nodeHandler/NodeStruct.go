@@ -7,12 +7,11 @@ import (
 	"github.com/golang/glog"
 )
 
-//IDCounter ID 计数器
-var IDCounter uint
+//IDCounter ID 线程安全计数器
+var IDCounter *sysTool.SafeID
 
-//AllNodes key：节点ID Value：节点对象
-
-var AllNodes = make(map[uint]Node)
+//safeMap key：节点ID Value：节点对象
+var AllNodes *sysTool.SafeMap
 
 //DataNodes 数据节点ID列表
 var DataNodes []uint
@@ -112,7 +111,7 @@ func (node Node) IsRddtNode() bool {
 //NodeConfigured 判断节点是否已经配置
 func NodeConfigured() bool {
 	//TODO: 自动设定节点
-	return len(AllNodes) != 0
+	return AllNodes.Count() != 0
 }
 
 //AddToLost 将节点ID加入失效节点列表
@@ -140,15 +139,6 @@ func EmptyToRddt(nodeID uint) {
 	RddtNodes = append(RddtNodes, nodeID)
 }
 
-//GetIndexInRddt 在全部校验节点中寻找某个节点ID在该列表中的位置
-func GetIndexInRddt(targetID uint) int {
-	for index, rddtNodeID := range RddtNodes {
-		if rddtNodeID == targetID {
-			return index
-		}
-	}
-	return 0
-}
 
 //TODO: 去掉对fileHandler的依赖
 // func (node Node) DetectNode(file fileHandler.File) (finished, isDataNode bool) {

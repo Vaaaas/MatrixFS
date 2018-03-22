@@ -9,7 +9,6 @@ import (
 
 	"github.com/Vaaaas/MatrixFS/nodeHandler"
 	"github.com/Vaaaas/MatrixFS/sysTool"
-	"github.com/golang/glog"
 )
 
 //CollectFiles 从存储节点收集全部分块文件到中心节点
@@ -19,8 +18,9 @@ func (file File) CollectFiles() {
 			getOneFile(file, true, nodeHandler.DataNodes[i], i, 0, 0)
 		} else {
 			for j := 0; j < sysTool.SysConfig.RowNum; j++ {
-				glog.Infof("Collect Files Data Node Status : %t, ID : %d", nodeHandler.AllNodes[nodeHandler.DataNodes[i]].Status, nodeHandler.DataNodes[i])
-				if nodeHandler.AllNodes[nodeHandler.DataNodes[i]].Status == true {
+				node := nodeHandler.AllNodes.Get(nodeHandler.DataNodes[i]).(nodeHandler.Node)
+				//glog.Infof("Collect Files Data Node Status : %t, ID : %d", node.Status, nodeHandler.DataNodes[i])
+				if node.Status == true {
 					getOneFile(file, true, nodeHandler.DataNodes[i], i, j, 0)
 				}
 			}
@@ -38,8 +38,9 @@ func (file File) CollectFiles() {
 		for fCounter := 0; fCounter < sysTool.SysConfig.FaultNum; fCounter++ {
 			k := (int)((fCounter + 2) / 2 * (int)(math.Pow(-1, (float64)(fCounter+2))))
 			for fileCounter < sysTool.SysConfig.DataNum {
-				glog.Infof("从节点获取冗余文件 Rddt Node Num : %d \t k : %d \t fileCounter : %d \t nodeCounter : %d\n", nodeCounter, k, fileCounter, nodeCounter)
-				if nodeHandler.AllNodes[nodeHandler.RddtNodes[nodeCounter]].Status == true {
+				//glog.Infof("从节点获取冗余文件 Rddt Node Num : %d \t k : %d \t fileCounter : %d \t nodeCounter : %d\n", nodeCounter, k, fileCounter, nodeCounter)
+				node := nodeHandler.AllNodes.Get(nodeHandler.RddtNodes[nodeCounter]).(nodeHandler.Node)
+				if node.Status == true {
 					getOneFile(file, false, nodeHandler.RddtNodes[nodeCounter], k, fileCounter, nodeCounter)
 				}
 				fileCounter++
@@ -62,13 +63,14 @@ func getOneFile(file File, isData bool, nodeID uint, posiX, posiY, rddtNodePos i
 	var filePath string
 	var fileName = file.FileFullName + "." + strconv.Itoa((int)(posiX)) + strconv.Itoa(posiY)
 	if isData {
-		filePath = StructSliceFileName("temp", true, posiX, file.FileFullName, posiX, posiY)
+		filePath = StructSliceFileName("./temp", true, posiX, file.FileFullName, posiX, posiY)
 	} else {
-		filePath = StructSliceFileName("temp", false, rddtNodePos, file.FileFullName, posiX, posiY)
+		filePath = StructSliceFileName("./temp", false, rddtNodePos, file.FileFullName, posiX, posiY)
 	}
-	glog.Infof("从节点收集文件 filePath : %s, fileName : %s", filePath, fileName)
-	url := "http://" + nodeHandler.AllNodes[nodeID].Address.String() + ":" + strconv.Itoa(nodeHandler.AllNodes[nodeID].Port) + "/download/" + fileName
-	glog.Infof("获取文件的URL : %s", url)
+	//glog.Infof("从节点收集文件 filePath : %s, fileName : %s", filePath, fileName)
+	node := nodeHandler.AllNodes.Get(nodeID).(nodeHandler.Node)
+	url := "http://" + node.Address.String() + ":" + strconv.Itoa(node.Port) + "/download/" + fileName
+	//glog.Infof("获取文件的URL : %s", url)
 	res, _ := http.Get(url)
 	if res.StatusCode != 200 {
 		return false
@@ -76,6 +78,6 @@ func getOneFile(file File, isData bool, nodeID uint, posiX, posiY, rddtNodePos i
 	fileGet, _ := os.Create(filePath)
 	defer fileGet.Close()
 	io.Copy(fileGet, res.Body)
-	glog.Info(res.Status)
+	//glog.Info(res.Status)
 	return true
 }

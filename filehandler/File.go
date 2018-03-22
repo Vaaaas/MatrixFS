@@ -10,8 +10,11 @@ import (
 	"github.com/golang/glog"
 )
 
-//AllFiles 所有文件对象列表
-var AllFiles []File
+//IDCounter ID 线程安全计数器
+var IDCounter *sysTool.SafeID
+
+//safeMap key：节点ID Value：节点对象
+var AllFiles *sysTool.SafeMap
 
 //File 文件类
 type File struct {
@@ -22,18 +25,9 @@ type File struct {
 	SliceSize    int64
 }
 
-//FindFileInAll 在全部文件列表中通过文件名查找文件对象
-func FindFileInAll(name string) *File {
-	for _, tempFile := range AllFiles {
-		if tempFile.FileFullName == name {
-			return &tempFile
-		}
-	}
-	return nil
-}
-
 //FileExistedInCenter 查看某个文件是否在磁盘中存在
 func FileExistedInCenter(filePath string) bool {
+	//glog.Infoln("[File to Delete] path  "+filePath)
 	_, err := os.Stat(filePath)
 	return !os.IsNotExist(err)
 }
@@ -47,11 +41,11 @@ func FileExistInNode(file File, isData bool, nodeID uint, posiX, posiY, rddtNode
 func StructSliceFileName(storagePosition string, isDataSlice bool, nodePos int, fileName string, dataNodeNumK int, rowStartDataPos int) string {
 	var dataOrRddt string
 	if isDataSlice {
-		dataOrRddt = "Data."
+		dataOrRddt = "DATA."
 	} else {
-		dataOrRddt = "Rddt."
+		dataOrRddt = "RDDT."
 	}
-	return "./" + storagePosition + "/" + dataOrRddt + strconv.Itoa(nodePos) + "/" + fileName + "." + strconv.Itoa(dataNodeNumK) + strconv.Itoa(rowStartDataPos)
+	return storagePosition + "/" + dataOrRddt + strconv.Itoa(nodePos) + "/" + fileName + "." + strconv.Itoa(dataNodeNumK) + strconv.Itoa(rowStartDataPos)
 }
 
 //Init 初始化文件对象
@@ -80,8 +74,8 @@ func (file *File) Init(source string) error {
 	}
 	glog.Infof("%+v ", file)
 	//添加入所有文件列表
-	AllFiles = append(AllFiles, *file)
-	glog.Infof("All Files: %+v  ,len: %d", AllFiles[len(AllFiles)-1], len(AllFiles))
+	AllFiles.Set(file.FileFullName,file)
+	glog.Infof("All Files: %d", AllFiles.Count())
 	return nil
 }
 

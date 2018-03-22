@@ -22,7 +22,8 @@ func (file *File) LostHandle() bool {
 	//找出所有数据节点
 	for col := 0; col < len(nodeHandler.LostNodes); col++ {
 		glog.Infof("需要检测节点 ID : %d", nodeHandler.LostNodes[col])
-		if nodeHandler.AllNodes[nodeHandler.LostNodes[col]].IsDataNode() {
+		node := nodeHandler.AllNodes.Get(nodeHandler.LostNodes[col]).(nodeHandler.Node)
+		if node.IsDataNode() {
 			dataNodes = append(dataNodes, nodeHandler.LostNodes[col])
 		}
 	}
@@ -33,7 +34,8 @@ func (file *File) LostHandle() bool {
 			var rowResult = true
 			for col := 0; col < len(dataNodes); col++ {
 				//检测并恢复单个文件
-				colResult := file.DetectDataFile(nodeHandler.AllNodes[dataNodes[col]], row)
+				node := nodeHandler.AllNodes.Get(dataNodes[col]).(nodeHandler.Node)
+				colResult := file.DetectDataFile(node, row)
 				rowResult = rowResult && colResult
 			}
 			recFinish = recFinish && rowResult
@@ -45,7 +47,8 @@ func (file *File) LostHandle() bool {
 					var rowResult = true
 					for col := 0; col < len(dataNodes); col++ {
 						//检测并恢复单个文件
-						colResult := file.DetectDataFile(nodeHandler.AllNodes[dataNodes[col]], row)
+						node := nodeHandler.AllNodes.Get(dataNodes[col]).(nodeHandler.Node)
+						colResult := file.DetectDataFile(node, row)
 						rowResult = rowResult && colResult
 					}
 					recFinish = recFinish && rowResult
@@ -63,7 +66,7 @@ func (file *File) LostHandle() bool {
 //DetectDataFile 检测单个数据文件，如果不在中心节点，则依次检测对应校验文件，码链上的所有数据分块，以判断是否可恢复，可以则恢复
 func (file File) DetectDataFile(node nodeHandler.Node, targetRow int) bool {
 	var dataNodePos = node.GetIndexInDataNodes()
-	filePath := StructSliceFileName("temp", true, dataNodePos, file.FileFullName, dataNodePos, targetRow)
+	filePath := StructSliceFileName("./temp", true, dataNodePos, file.FileFullName, dataNodePos, targetRow)
 	if FileExistedInCenter(filePath) {
 		return true
 	}
@@ -117,9 +120,9 @@ func (file File) DetectDataFile(node nodeHandler.Node, targetRow int) bool {
 
 //DetectRddtFile 检测所有校验分块是否全部恢复
 func (file File) DetectRddtFile(rddtNodePos, k, dataNodePos int) bool {
-	filePath := StructSliceFileName("temp", false, rddtNodePos, file.FileFullName, k, dataNodePos)
+	filePath := StructSliceFileName("./temp", false, rddtNodePos, file.FileFullName, k, dataNodePos)
 	if !FileExistedInCenter(filePath) {
-		if !FileExistInNode(file, false, nodeHandler.AllNodes[nodeHandler.RddtNodes[rddtNodePos]].ID, k, dataNodePos, rddtNodePos) {
+		if !FileExistInNode(file, false, nodeHandler.RddtNodes[rddtNodePos], k, dataNodePos, rddtNodePos) {
 			return false
 		}
 	}
@@ -135,7 +138,7 @@ func (file File) DetectKLine(dataNodePos, targetRow, rddtNodePos, k int) bool {
 		if targetRow == rowCount {
 			continue
 		}
-		filePath := StructSliceFileName("temp", true, (startIndex+rowCount*k+len(nodeHandler.DataNodes))%len(nodeHandler.DataNodes), file.FileFullName, startIndex+rowCount*k+len(nodeHandler.DataNodes)%len(nodeHandler.DataNodes), rowCount)
+		filePath := StructSliceFileName("./temp", true, (startIndex+rowCount*k+len(nodeHandler.DataNodes))%len(nodeHandler.DataNodes), file.FileFullName, startIndex+rowCount*k+len(nodeHandler.DataNodes)%len(nodeHandler.DataNodes), rowCount)
 		//先看中心节点有没有
 		resultCenter := FileExistedInCenter(filePath)
 		if !resultCenter {
@@ -159,7 +162,7 @@ func (file File) DetectKLine(dataNodePos, targetRow, rddtNodePos, k int) bool {
 func (file File) RestoreDataFile(dataNodePos, rddtNodePos, k, targetRow int) {
 	var startIndex = (dataNodePos - k*targetRow + len(nodeHandler.DataNodes)) % len(nodeHandler.DataNodes)
 	buffer := make([]byte, file.SliceSize)
-	filePath := StructSliceFileName("temp", false, rddtNodePos, file.FileFullName, k, startIndex)
+	filePath := StructSliceFileName("./temp", false, rddtNodePos, file.FileFullName, k, startIndex)
 	rddtFile, err := os.Open(filePath)
 	if err != nil {
 		glog.Error("打开Rddt源文件失败 " + filePath)
@@ -176,7 +179,7 @@ func (file File) RestoreDataFile(dataNodePos, rddtNodePos, k, targetRow int) {
 			continue
 		}
 		dataPos := (startIndex + rowCount*k + len(nodeHandler.DataNodes)) % len(nodeHandler.DataNodes)
-		filePath := StructSliceFileName("temp", true, dataPos, file.FileFullName, dataPos, rowCount)
+		filePath := StructSliceFileName("./temp", true, dataPos, file.FileFullName, dataPos, rowCount)
 		tempBytes := make([]byte, file.SliceSize)
 		dataFile, err := os.Open(filePath)
 		_, err = dataFile.Read(tempBytes)
@@ -190,7 +193,7 @@ func (file File) RestoreDataFile(dataNodePos, rddtNodePos, k, targetRow int) {
 			buffer[byteCounter] = buffer[byteCounter] ^ tempBytes[byteCounter]
 		}
 	}
-	filePath = StructSliceFileName("temp", true, dataNodePos, file.FileFullName, dataNodePos, targetRow)
+	filePath = StructSliceFileName("./temp", true, dataNodePos, file.FileFullName, dataNodePos, targetRow)
 	targetFilePath, err := os.OpenFile(filePath, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		glog.Error("新建恢复数据冗余分块文件失败 " + filePath)
@@ -216,7 +219,7 @@ func (file File) RestoreDataFile(dataNodePos, rddtNodePos, k, targetRow int) {
 //	for index := range nodeHandler.LostNodes {
 //		var result bool
 //		glog.Infof("需要检测节点 ID : %d", nodeHandler.LostNodes[index])
-//		result = nodeHandler.AllNodes[nodeHandler.LostNodes[index]].Old_DetectNode(file)
+//		result = nodeHandler.safeMap[nodeHandler.LostNodes[index]].Old_DetectNode(file)
 //		recFinish = recFinish && result
 //	}
 //	for !recFinish {
@@ -224,7 +227,7 @@ func (file File) RestoreDataFile(dataNodePos, rddtNodePos, k, targetRow int) {
 //		for index := range nodeHandler.LostNodes {
 //			var result bool
 //			glog.Infof("需要检测节点 ID : %d", nodeHandler.LostNodes[index])
-//			result = nodeHandler.AllNodes[nodeHandler.LostNodes[index]].Old_DetectNode(file)
+//			result = nodeHandler.safeMap[nodeHandler.LostNodes[index]].Old_DetectNode(file)
 //			recFinish = recFinish && result
 //		}
 //	}
@@ -244,7 +247,7 @@ func (file File) RestoreDataFile(dataNodePos, rddtNodePos, k, targetRow int) {
 // 	if FileExistedInCenter("temp/Data." + strconv.Itoa(NodeDataNum) + "/" + file.FileFullName + "." + strconv.Itoa(NodeDataNum) + strconv.Itoa(targetRow)) {
 // 		return true
 // 	}
-// 	if !file.DetectRddtFile(nodeHandler.AllNodes[nodeHandler.RddtNodes[rddtNodeNum]], k, startNodeNum) {
+// 	if !file.DetectRddtFile(nodeHandler.safeMap[nodeHandler.RddtNodes[rddtNodeNum]], k, startNodeNum) {
 // 		return false
 // 	}
 // 	//此时可以确定校验分块存在，不需要在检测码链时再检测一次

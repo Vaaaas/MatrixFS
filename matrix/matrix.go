@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 	"github.com/Vaaaas/MatrixFS/nodeHandler"
+	"github.com/Vaaaas/MatrixFS/filehandler"
 	"github.com/Vaaaas/MatrixFS/sysTool"
 	"github.com/golang/glog"
 )
@@ -28,7 +29,10 @@ func main() {
 		glog.Errorln(err)
 	}
 
-	nodeHandler.IDCounter = 0
+	nodeHandler.IDCounter = sysTool.NewSafeID()
+	filehandler.IDCounter = sysTool.NewSafeID()
+	nodeHandler.AllNodes = sysTool.NewSafeMap()
+	filehandler.AllFiles=sysTool.NewSafeMap()
 
 	//Pages
 	http.HandleFunc("/", rootHandler)
@@ -49,16 +53,17 @@ func main() {
 	go func() {
 		for {
 			now := time.Now().UnixNano() / 1000000
-			for key, value := range nodeHandler.AllNodes {
-				//glog.Infof("Now : %d, value.Lasttime : %d, delta : %d, delta-6000 : %d", now, value.LastTime, now - value.LastTime, now - value.LastTime - 6000)
-				if now-value.LastTime > 6000 {
-					node := value
-					node.Status = false
-					nodeHandler.AllNodes[key] = node
-					OnDeleted(&node)
+			allNodesListTemp:=nodeHandler.AllNodes.Items()
+			for key, value := range allNodesListTemp {
+				converted, _ := value.(nodeHandler.Node)
+				key,_:=key.(uint)
+				if now-converted.LastTime > 6000 {
+					converted.Status = false
+					nodeHandler.AllNodes.Set(key,converted)
+					OnDeleted(&converted)
 				}
 			}
-			time.Sleep(4 * time.Second)
+			time.Sleep(5 * time.Second)
 		}
 	}()
 
@@ -80,7 +85,7 @@ func OnDeleted(node *nodeHandler.Node) {
 
 	if isEmpty {
 		//If Empty Node Lost, delete from all & Empty Slices
-		delete(nodeHandler.AllNodes, node.ID)
+		nodeHandler.AllNodes.Delete(node.ID)
 		index := sysTool.GetIndexInAll(len(nodeHandler.EmptyNodes), func(i int) bool {
 			return nodeHandler.EmptyNodes[i] == node.ID
 		})
