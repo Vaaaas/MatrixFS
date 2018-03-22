@@ -1,6 +1,6 @@
 package sysTool
 
-import(
+import (
 	"sync"
 )
 
@@ -9,7 +9,7 @@ type SafeMap struct {
 	InnerMap map[interface{}]interface{}
 }
 
-// NewSafeMap 建立新的对象
+//NewSafeMap 建立新的对象
 func NewSafeMap() *SafeMap {
 	return &SafeMap{
 		lock:     new(sync.RWMutex),
@@ -17,7 +17,7 @@ func NewSafeMap() *SafeMap {
 	}
 }
 
-// Get from maps return the k's value
+//Get 利用ID获取对象
 func (safeMap *SafeMap) Get(id interface{}) interface{} {
 	safeMap.lock.RLock()
 	defer safeMap.lock.RUnlock()
@@ -27,30 +27,22 @@ func (safeMap *SafeMap) Get(id interface{}) interface{} {
 	return nil
 }
 
-// Set Maps the given key and value. Returns false
-// if the key is already in the map and changes nothing.
+//Set 将ID对应值设置为指定对象
 func (safeMap *SafeMap) Set(id interface{}, node interface{}) bool {
 	safeMap.lock.Lock()
 	defer safeMap.lock.Unlock()
 	safeMap.InnerMap[id] = node
-	//if val, ok := safeMap.InnerMap[id]; !ok {
-	//	safeMap.InnerMap[id] = node
-	//} else if val != node {
-	//	safeMap.InnerMap[id] = node
-	//} else {
-	//	return false
-	//}
 	return true
 }
 
-// Delete the given key and value.
+//Delete ID及对应的对象
 func (safeMap *SafeMap) Delete(id interface{}) {
 	safeMap.lock.Lock()
 	defer safeMap.lock.Unlock()
 	delete(safeMap.InnerMap, id)
 }
 
-// Items returns all items in safemap.
+//Item 返回map的副本
 func (safeMap *SafeMap) Items() map[interface{}]interface{} {
 	safeMap.lock.RLock()
 	defer safeMap.lock.RUnlock()
@@ -61,17 +53,9 @@ func (safeMap *SafeMap) Items() map[interface{}]interface{} {
 	return r
 }
 
-// Count returns the number of items within the map.
+//Count 返回map里元素个数
 func (safeMap *SafeMap) Count() int {
 	safeMap.lock.RLock()
 	defer safeMap.lock.RUnlock()
 	return len(safeMap.InnerMap)
-}
-
-// Check Returns true if k is exist in the map.
-func (allNodes *SafeMap) Check(id interface{}) bool {
-	allNodes.lock.RLock()
-	defer allNodes.lock.RUnlock()
-	_, ok := allNodes.InnerMap[id]
-	return ok
 }

@@ -14,12 +14,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Vaaaas/MatrixFS/nodeHandler"
+	"github.com/Vaaaas/MatrixFS/nodehandler"
 	"github.com/Vaaaas/go-disk-usage/du"
 	"github.com/golang/glog"
 )
 
-var nodeInfo nodeHandler.Node
+var nodeInfo nodehandler.Node
 var MasterAdd *net.TCPAddr
 var NodeAdd *net.TCPAddr
 
@@ -31,10 +31,10 @@ func main() {
 	flag.StringVar(&master, "master", "127.0.0.1:8080", "Master server IP & Port")
 	flag.StringVar(&local, "node", "127.0.0.1:9090", "Local Node IP & Port")
 	flag.StringVar(&StorePath, "stpath", "./storage", "Local Storage Path")
-	//when debug, log_dir="./log"
+	//log_dir="./log"
 	flag.Parse()
 
-	//Trigger on exit, write log into files
+	//退出时将日志写入文件
 	defer glog.Flush()
 	err := os.MkdirAll(flag.Lookup("log_dir").Value.String(), 0766)
 	if err != nil {
@@ -47,7 +47,7 @@ func main() {
 		panic(err)
 	}
 
-	//Init Master & Node Address
+	//初始化中心节点和本节点的IP
 	MasterAdd, err = net.ResolveTCPAddr("tcp4", master)
 	if err != nil {
 		glog.Errorln(err)
@@ -63,7 +63,7 @@ func main() {
 		log.Fatal(err)
 	}
 	dir = strings.Replace(dir, "\\", "/", -1)
-	//Get Free Space of Storage Path
+	//获取存储节点本地存储路径的可用空间
 	diskUsage := du.NewDiskUsage(dir)
 	volume := (float64)(diskUsage.Available()) / (float64)(1024*1024*1024)
 	glog.Infof("Node start here : %d", NodeAdd.Port)
@@ -71,7 +71,7 @@ func main() {
 	glog.Infof("Store Path: %s, Free space: %f", StorePath, volume)
 
 	nodeInfo.ID = 0
-	InitStruct(&nodeInfo, NodeAdd.IP, NodeAdd.Port, volume)
+	initStruct(&nodeInfo, NodeAdd.IP, NodeAdd.Port, volume)
 
 	go func() {
 		for {
@@ -85,7 +85,6 @@ func main() {
 	http.HandleFunc("/delete", deleteHandler)
 	http.HandleFunc("/resetid", resetIDHandler)
 
-	//TODO: 使用FileServer，不确定是否并行处理每个请求
 	http.Handle("/download/", http.StripPrefix("/download/", http.FileServer(http.Dir(StorePath))))
 
 	if err := http.ListenAndServe(":"+strconv.Itoa(NodeAdd.Port), nil); err != nil {
@@ -200,7 +199,7 @@ func connectMaster(master *net.TCPAddr) error {
 	return nil
 }
 
-func InitStruct(nodeInfo *nodeHandler.Node, address net.IP, port int, volume float64) error {
+func initStruct(nodeInfo *nodehandler.Node, address net.IP, port int, volume float64) error {
 	nodeInfo.Address = address
 	nodeInfo.Port = port
 	nodeInfo.Volume = volume

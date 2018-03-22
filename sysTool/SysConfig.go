@@ -23,7 +23,16 @@ func SysConfigured() bool {
 	return SysConfig.FaultNum != 0 && SysConfig.RowNum != 0
 }
 
-//TODO: 应该返回值bool
+//GetIndexInAll 利用编号在列表中获取对象
+func GetIndexInAll(limit int, predicate func(i int) bool) int {
+	for i := 0; i < limit; i++ {
+		if predicate(i) {
+			return i
+		}
+	}
+	return -1
+}
+
 //InitConfig 初始化容错数和行数配置
 func InitConfig(fault, row int) {
 	if fault <= 1 || row <= 1 {
@@ -53,7 +62,7 @@ func InitConfig(fault, row int) {
 	}
 }
 
-//初始化临时文件夹
+//初始化临时文件夹 根据参数决定个数
 func initTempFolders(fault, dataNum, row int) error {
 	err := initDataFolders(dataNum)
 	if err != nil {
@@ -70,6 +79,7 @@ func initTempFolders(fault, dataNum, row int) error {
 	return nil
 }
 
+//初始化数据节点临时文件夹
 func initDataFolders(dataNum int) error {
 	for i := 0; i < dataNum; i++ {
 		err := os.MkdirAll("./temp/DATA."+strconv.Itoa(i), 0766)
@@ -77,10 +87,10 @@ func initDataFolders(dataNum int) error {
 			return err
 		}
 	}
-
 	return nil
 }
 
+//初始化校验节点临时文件夹
 func initRddtFolders(rddtNum int) error {
 	for i := 0; i < rddtNum; i++ {
 		err := os.MkdirAll("./temp/RDDT."+strconv.Itoa(i), 0766)
@@ -88,16 +98,5 @@ func initRddtFolders(rddtNum int) error {
 			return err
 		}
 	}
-
 	return nil
-}
-
-//GetIndexInAll 利用编号在列表中获取对象
-func GetIndexInAll(limit int, predicate func(i int) bool) int {
-	for i := 0; i < limit; i++ {
-		if predicate(i) {
-			return i
-		}
-	}
-	return -1
 }

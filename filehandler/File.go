@@ -10,42 +10,28 @@ import (
 	"github.com/golang/glog"
 )
 
-//IDCounter ID 线程安全计数器
-var IDCounter *sysTool.SafeID
-
-//safeMap key：节点ID Value：节点对象
+//AllFiles key：节点ID Value：节点对象
 var AllFiles *sysTool.SafeMap
 
 //File 文件类
 type File struct {
 	FileFullName string
-	Size         int64
-	FillLast     bool
-	FillSize     int64
-	SliceSize    int64
+	size         int64
+	fillLast     bool
+	fillSize     int64
+	sliceSize    int64
 }
 
-//FileExistedInCenter 查看某个文件是否在磁盘中存在
-func FileExistedInCenter(filePath string) bool {
+//fileExistedInCenter 查看某个文件是否在磁盘中存在
+func fileExistedInCenter(filePath string) bool {
 	//glog.Infoln("[File to Delete] path  "+filePath)
 	_, err := os.Stat(filePath)
 	return !os.IsNotExist(err)
 }
 
-//FileExistInNode 查看某个文件能否从节点获取
-func FileExistInNode(file File, isData bool, nodeID uint, posiX, posiY, rddtNodePos int) bool {
+//fileExistInNode 查看某个文件能否从节点获取
+func fileExistInNode(file File, isData bool, nodeID uint, posiX, posiY, rddtNodePos int) bool {
 	return getOneFile(file, isData, nodeID, posiX, posiY, rddtNodePos)
-}
-
-//StructSliceFileName 利用存储根目录，原始文件名，数据/校验，存储节点编号，数据节点编号/斜率，行号/起始数据节点编号构建存储路径
-func StructSliceFileName(storagePosition string, isDataSlice bool, nodePos int, fileName string, dataNodeNumK int, rowStartDataPos int) string {
-	var dataOrRddt string
-	if isDataSlice {
-		dataOrRddt = "DATA."
-	} else {
-		dataOrRddt = "RDDT."
-	}
-	return storagePosition + "/" + dataOrRddt + strconv.Itoa(nodePos) + "/" + fileName + "." + strconv.Itoa(dataNodeNumK) + strconv.Itoa(rowStartDataPos)
 }
 
 //Init 初始化文件对象
@@ -61,20 +47,20 @@ func (file *File) Init(source string) error {
 		return errors.New("初始化失败：该路径指向的是文件夹")
 	}
 	file.FileFullName = fileInfo.Name()
-	file.Size = fileInfo.Size()
+	file.size = fileInfo.Size()
 	//判断是否需要在文件末尾补0
-	if (file.Size % (int64)(sysTool.SysConfig.SliceNum)) != 0 {
-		file.FillLast = true
-		file.SliceSize = file.Size/(int64)(sysTool.SysConfig.SliceNum) + 1
-		file.FillSize = file.SliceSize*(int64)(sysTool.SysConfig.SliceNum) - file.Size
+	if (file.size % (int64)(sysTool.SysConfig.SliceNum)) != 0 {
+		file.fillLast = true
+		file.sliceSize = file.size/(int64)(sysTool.SysConfig.SliceNum) + 1
+		file.fillSize = file.sliceSize*(int64)(sysTool.SysConfig.SliceNum) - file.size
 	} else {
-		file.FillLast = false
-		file.SliceSize = file.Size / (int64)(sysTool.SysConfig.SliceNum)
-		file.FillSize = 0
+		file.fillLast = false
+		file.sliceSize = file.size / (int64)(sysTool.SysConfig.SliceNum)
+		file.fillSize = 0
 	}
 	glog.Infof("%+v ", file)
 	//添加入所有文件列表
-	AllFiles.Set(file.FileFullName,file)
+	AllFiles.Set(file.FileFullName, file)
 	glog.Infof("All Files: %d", AllFiles.Count())
 	return nil
 }
@@ -102,4 +88,15 @@ func (file File) SliceFileName() (string, string) {
 	}
 	glog.Error("分割文件名失败：未定义文件名")
 	return "", ""
+}
+
+//structSliceFileName 利用存储根目录，原始文件名，数据/校验，存储节点编号，数据节点编号/斜率，行号/起始数据节点编号构建存储路径
+func structSliceFileName(storagePosition string, isDataSlice bool, nodePos int, fileName string, dataNodeNumK int, rowStartDataPos int) string {
+	var dataOrRddt string
+	if isDataSlice {
+		dataOrRddt = "DATA."
+	} else {
+		dataOrRddt = "RDDT."
+	}
+	return storagePosition + "/" + dataOrRddt + strconv.Itoa(nodePos) + "/" + fileName + "." + strconv.Itoa(dataNodeNumK) + strconv.Itoa(rowStartDataPos)
 }

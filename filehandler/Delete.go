@@ -7,28 +7,28 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/golang/glog"
+	"github.com/Vaaaas/MatrixFS/nodehandler"
 	"github.com/Vaaaas/MatrixFS/sysTool"
-	"github.com/Vaaaas/MatrixFS/nodeHandler"
+	"github.com/golang/glog"
 )
 
 //DeleteSlices 处理用户删除文件的请求
 func (file File) DeleteSlices() {
 	for i := 0; i < sysTool.SysConfig.DataNum; i++ {
-		if file.Size <= 1000 {
+		if file.size <= 1000 {
 			//只需删除第一个
-			deleteOneFile(file, true, nodeHandler.DataNodes[i], i, 0)
+			deleteOneFile(file, true, nodehandler.DataNodes[i], i, 0)
 		} else {
 			for j := 0; j < sysTool.SysConfig.RowNum; j++ {
-				deleteOneFile(file, true, nodeHandler.DataNodes[i], i, j)
+				deleteOneFile(file, true, nodehandler.DataNodes[i], i, j)
 			}
 		}
 	}
 
-	if file.Size <= 1000 {
+	if file.size <= 1000 {
 		for i := 0; i < sysTool.SysConfig.RddtNum; i++ {
 			//只需删除第一个
-			deleteOneFile(file, false, nodeHandler.RddtNodes[i], i, 0)
+			deleteOneFile(file, false, nodehandler.RddtNodes[i], i, 0)
 		}
 	} else {
 		nodeCounter := 0
@@ -39,7 +39,7 @@ func (file File) DeleteSlices() {
 			for fileCounter < sysTool.SysConfig.DataNum {
 				//glog.Infof("Rddt Node Num : %d \t k : %d \t fileCounter : %d \t nodeCounter : %d\n", nodeCounter, k, fileCounter, nodeCounter)
 				//执行删除
-				deleteOneFile(file, false, nodeHandler.RddtNodes[nodeCounter], k, fileCounter)
+				deleteOneFile(file, false, nodehandler.RddtNodes[nodeCounter], k, fileCounter)
 				fileCounter++
 				rddtFileCounter++
 				if rddtFileCounter%(sysTool.SysConfig.SliceNum/sysTool.SysConfig.DataNum) == 0 {
@@ -65,7 +65,7 @@ func deleteOneFile(file File, isData bool, nodeID uint, posiX, posiY int) {
 		fileName = file.FileFullName + "." + strconv.Itoa((int)(posiX)) + strconv.Itoa(posiY)
 	}
 	//设定请求发送url
-	node := nodeHandler.AllNodes.Get(nodeID).(nodeHandler.Node)
+	node := nodehandler.AllNodes.Get(nodeID).(nodehandler.Node)
 	url := "http://" + node.Address.String() + ":" + strconv.Itoa(node.Port) + "/delete"
 	//glog.Info("[DELETE] URL " + url)
 
@@ -88,17 +88,14 @@ func deleteOneFile(file File, isData bool, nodeID uint, posiX, posiY int) {
 		glog.Errorln(err)
 		panic(err)
 	}
-	//glog.Info(resp.Status)
-	//glog.Info(string(respbody))
 }
 
-//TODO: 有问题
 //DeleteAllTempFiles 删除中心节点中某个文件的全部临时文件
 func (file File) DeleteAllTempFiles() error {
 	file.deleteTempDataFiles()
 	file.deleteTempRddtFiles()
 	//删除原始文件副本
-	if !FileExistedInCenter("temp/" + file.FileFullName) {
+	if !fileExistedInCenter("temp/" + file.FileFullName) {
 		glog.Warningf("[File to Delete NOT EXIST] temp/" + file.FileFullName)
 	} else {
 		err := os.Remove("temp/" + file.FileFullName)
@@ -113,10 +110,10 @@ func (file File) DeleteAllTempFiles() error {
 
 func (file File) deleteTempDataFiles() error {
 	for i := 0; i < sysTool.SysConfig.DataNum; i++ {
-		if file.Size <= 1000 {
+		if file.size <= 1000 {
 			//删除副本
-			filePath := StructSliceFileName("./temp", true, i, file.FileFullName, i, 0)
-			if !FileExistedInCenter(filePath) {
+			filePath := structSliceFileName("./temp", true, i, file.FileFullName, i, 0)
+			if !fileExistedInCenter(filePath) {
 				glog.Warningf("[File to Delete NOT EXIST] temp/Data.%d/%s.%d%d ", i, file.FileFullName, i, 0)
 			} else {
 				err := os.Remove(filePath)
@@ -128,8 +125,8 @@ func (file File) deleteTempDataFiles() error {
 			}
 		} else {
 			for j := 0; j < sysTool.SysConfig.RowNum; j++ {
-				filePath := StructSliceFileName("./temp", true, i, file.FileFullName, i, j)
-				if !FileExistedInCenter(filePath) {
+				filePath := structSliceFileName("./temp", true, i, file.FileFullName, i, j)
+				if !fileExistedInCenter(filePath) {
 					glog.Warningf("[File to Delete NOT EXIST] temp/Data.%d/%s.%d%d ", i, file.FileFullName, i, j)
 				} else {
 					err := os.Remove(filePath)
@@ -146,10 +143,10 @@ func (file File) deleteTempDataFiles() error {
 }
 
 func (file File) deleteTempRddtFiles() error {
-	if file.Size <= 1000 {
+	if file.size <= 1000 {
 		for i := 0; i < sysTool.SysConfig.RddtNum; i++ {
-			filePath := StructSliceFileName("./temp", false, i, file.FileFullName, i, 0)
-			if !FileExistedInCenter(filePath) {
+			filePath := structSliceFileName("./temp", false, i, file.FileFullName, i, 0)
+			if !fileExistedInCenter(filePath) {
 				glog.Warningf("[File to Delete NOT EXIST] temp/Rddt.%d/%s.%d%d ", i, file.FileFullName, i, 0)
 			} else {
 				err := os.Remove(filePath)
@@ -168,8 +165,8 @@ func (file File) deleteTempRddtFiles() error {
 		for i := 0; i < sysTool.SysConfig.FaultNum; i++ {
 			k := (int)((i + 2) / 2 * (int)(math.Pow(-1, (float64)(i+2))))
 			for fileCounter < sysTool.SysConfig.DataNum {
-				filePath := StructSliceFileName("./temp", false, nodeCounter, file.FileFullName, k, fileCounter)
-				if !FileExistedInCenter(filePath) {
+				filePath := structSliceFileName("./temp", false, nodeCounter, file.FileFullName, k, fileCounter)
+				if !fileExistedInCenter(filePath) {
 					glog.Warningf("[File to Delete NOT EXIST] temp/RDDT.%d/%s.%d%d ", nodeCounter, file.FileFullName, k, fileCounter)
 				} else {
 					err := os.Remove(filePath)

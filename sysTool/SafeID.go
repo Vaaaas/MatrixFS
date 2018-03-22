@@ -1,18 +1,18 @@
 package sysTool
 
-import(
+import (
 	"sync"
 )
 
 type SafeID struct {
-	lock *sync.RWMutex
-	IDCounter   uint
+	lock      *sync.RWMutex
+	IDCounter uint
 }
 
 func NewSafeID() *SafeID {
 	return &SafeID{
-		lock: new(sync.RWMutex),
-		IDCounter:   0,
+		lock:      new(sync.RWMutex),
+		IDCounter: 0,
 	}
 }
 

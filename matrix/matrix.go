@@ -5,62 +5,65 @@ import (
 	"net/http"
 	"os"
 	"time"
-	"github.com/Vaaaas/MatrixFS/nodeHandler"
+
 	"github.com/Vaaaas/MatrixFS/filehandler"
+	"github.com/Vaaaas/MatrixFS/nodehandler"
 	"github.com/Vaaaas/MatrixFS/sysTool"
 	"github.com/golang/glog"
 )
 
 func main() {
-	//when debug, log_dir="./log"
+	//log_dir="./log"
 	flag.Parse()
-	//Trigger on exit, write log into files
+	//退出时调用 将日志写入文件
 	defer glog.Flush()
-	//Init system config(Moved to indexPageHandler)
-	//SysConfig.InitConfig(fault, row)
 	glog.Info("Master 服务器启动")
-
+	//建立临时文件存储文件夹
 	err := os.MkdirAll("./temp", 0766)
 	if err != nil {
 		glog.Errorln(err)
 	}
+	//建立日志存储文件夹
 	err = os.MkdirAll("./log", 0766)
 	if err != nil {
 		glog.Errorln(err)
 	}
 
-	nodeHandler.IDCounter = sysTool.NewSafeID()
-	filehandler.IDCounter = sysTool.NewSafeID()
-	nodeHandler.AllNodes = sysTool.NewSafeMap()
-	filehandler.AllFiles=sysTool.NewSafeMap()
+	nodehandler.IDCounter = sysTool.NewSafeID()
+	//初始化节点Map
+	nodehandler.AllNodes = sysTool.NewSafeMap()
+	//初始化文件Map
+	filehandler.AllFiles = sysTool.NewSafeMap()
 
-	//Pages
+	//页面处理方法
 	http.HandleFunc("/", rootHandler)
 	http.HandleFunc("/index", indexPageHandler)
 	http.HandleFunc("/file", filePageHandler)
 	http.HandleFunc("/node", nodeEnterHandler)
 
+	//功能处理方法
 	http.HandleFunc("/greet", greetHandler)
 	http.HandleFunc("/upload", uploadHandler)
 	http.HandleFunc("/delete", deleteHandler)
 	http.HandleFunc("/restore", restoreHandler)
-
 	http.HandleFunc("/download", downloadHandler)
 
+	//文件服务
 	http.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.Dir("./js/"))))
 	http.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("./css/"))))
 
+	//定时遍历所有节点，比较最后访问时间
 	go func() {
 		for {
 			now := time.Now().UnixNano() / 1000000
-			allNodesListTemp:=nodeHandler.AllNodes.Items()
+			allNodesListTemp := nodehandler.AllNodes.Items()
 			for key, value := range allNodesListTemp {
-				converted, _ := value.(nodeHandler.Node)
-				key,_:=key.(uint)
+				converted, _ := value.(nodehandler.Node)
+				key, _ := key.(uint)
 				if now-converted.LastTime > 6000 {
 					converted.Status = false
-					nodeHandler.AllNodes.Set(key,converted)
-					OnDeleted(&converted)
+					nodehandler.AllNodes.Set(key, converted)
+					onDeleted(&converted)
 				}
 			}
 			time.Sleep(5 * time.Second)
@@ -72,11 +75,10 @@ func main() {
 	}
 }
 
-//OnDeleted 节点丢失处理
-func OnDeleted(node *nodeHandler.Node) {
-	//glog.Info("OnDeleted")
+//onDeleted 节点丢失处理
+func onDeleted(node *nodehandler.Node) {
 	var isEmpty = false
-	for _, value := range nodeHandler.EmptyNodes {
+	for _, value := range nodehandler.EmptyNodes {
 		if value == node.ID {
 			glog.Info("Empty Node Found")
 			isEmpty = true
@@ -85,22 +87,22 @@ func OnDeleted(node *nodeHandler.Node) {
 
 	if isEmpty {
 		//If Empty Node Lost, delete from all & Empty Slices
-		nodeHandler.AllNodes.Delete(node.ID)
-		index := sysTool.GetIndexInAll(len(nodeHandler.EmptyNodes), func(i int) bool {
-			return nodeHandler.EmptyNodes[i] == node.ID
+		nodehandler.AllNodes.Delete(node.ID)
+		index := sysTool.GetIndexInAll(len(nodehandler.EmptyNodes), func(i int) bool {
+			return nodehandler.EmptyNodes[i] == node.ID
 		})
-		nodeHandler.EmptyNodes = append(nodeHandler.EmptyNodes[:index], nodeHandler.EmptyNodes[index+1:]...)
+		nodehandler.EmptyNodes = append(nodehandler.EmptyNodes[:index], nodehandler.EmptyNodes[index+1:]...)
 		glog.Info("已删除空节点")
 	} else {
 		var lostExist = false
-		for _, value := range nodeHandler.LostNodes {
+		for _, value := range nodehandler.LostNodes {
 			if value == node.ID {
 				//glog.Info("该节点为已丢失节点 : %d", node.ID)
 				lostExist = true
 			}
 		}
 		if !lostExist {
-			nodeHandler.AddToLost(node.ID)
+			nodehandler.LostNodes = append(nodehandler.LostNodes, node.ID)
 			sysTool.SysConfig.Status = false
 			glog.Infof("新的丢失节点, SysConfigure 变为 false, 丢失节点ID : %d", node.ID)
 		}

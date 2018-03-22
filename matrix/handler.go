@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"html/template"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
@@ -13,7 +12,7 @@ import (
 	"sync"
 
 	"github.com/Vaaaas/MatrixFS/filehandler"
-	"github.com/Vaaaas/MatrixFS/nodeHandler"
+	"github.com/Vaaaas/MatrixFS/nodehandler"
 	"github.com/Vaaaas/MatrixFS/sysTool"
 	"github.com/golang/glog"
 )
@@ -25,7 +24,7 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 			glog.Infoln("URL: " + r.URL.Path + " not configured, redirect to index.html")
 			http.Redirect(w, r, "/index", http.StatusFound)
 		} else {
-			if !nodeHandler.NodeConfigured() {
+			if !nodehandler.NodeConfigured() {
 				glog.Infoln("URL: " + r.URL.Path + " Node not configured, redirect to node.html")
 				http.Redirect(w, r, "/node", http.StatusFound)
 			} else {
@@ -50,7 +49,7 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 
 func indexPageHandler(w http.ResponseWriter, r *http.Request) {
 	if sysTool.SysConfigured() {
-		if !nodeHandler.NodeConfigured() {
+		if !nodehandler.NodeConfigured() {
 			glog.Infoln("URL: " + r.URL.Path + " Node not configured, redirect to node.html")
 			http.Redirect(w, r, "/node", http.StatusFound)
 		} else {
@@ -91,24 +90,24 @@ func nodeEnterHandler(w http.ResponseWriter, r *http.Request) {
 			sysTool.InitConfig(faultNum, rowNum)
 		}
 	}
-	allNodesListTemp:=nodeHandler.AllNodes.Items()
-	var resultMap =make(map[uint]nodeHandler.Node)
+	allNodesListTemp := nodehandler.AllNodes.Items()
+	var resultMap = make(map[uint]nodehandler.Node)
 	for key, value := range allNodesListTemp {
-		converted, ok := value.(nodeHandler.Node)
-		key,_:=key.(uint)
+		converted, ok := value.(nodehandler.Node)
+		key, _ := key.(uint)
 		if ok {
 			resultMap[key] = converted
 		}
 	}
 	data := struct {
-		Nodes        map[uint]nodeHandler.Node
+		Nodes        map[uint]nodehandler.Node
 		SystemStatus bool
 	}{
 		Nodes:        resultMap,
 		SystemStatus: sysTool.SysConfig.Status,
 	}
 
-	glog.Infof("System Status : %s, Length of AllNodes : %d", strconv.FormatBool(sysTool.SysConfig.Status), nodeHandler.AllNodes.Count())
+	glog.Infof("System Status : %s, Length of AllNodes : %d", strconv.FormatBool(sysTool.SysConfig.Status), nodehandler.AllNodes.Count())
 	t, err := template.ParseFiles("view/node.html")
 	if err != nil {
 		glog.Errorln(err)
@@ -125,12 +124,12 @@ func filePageHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	glog.Infof("Length of AllFiles : %d", filehandler.AllFiles.Count())
-	allFileListTemp:=filehandler.AllFiles.Items()
+	allFileListTemp := filehandler.AllFiles.Items()
 	var resultList []*filehandler.File
 	for _, value := range allFileListTemp {
 		result := value.(*filehandler.File)
-		resultList = append(resultList,result)
-		glog.Infoln("[Show File Page]File name Value: "+result.FileFullName)
+		resultList = append(resultList, result)
+		glog.Infoln("[Show File Page]File name Value: " + result.FileFullName)
 	}
 	t, err := template.ParseFiles("view/file.html")
 	if err != nil {
@@ -190,7 +189,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		fileName := r.Form["fileName"][0]
 		targetFile := filehandler.AllFiles.Get(fileName).(*filehandler.File)
-		glog.Infoln("[DOWNLOAD]开始收集数据分块 FullName is :"+fileName)
+		glog.Infoln("[DOWNLOAD]开始收集数据分块 FullName is :" + fileName)
 		targetFile.CollectFiles()
 		glog.Infoln("[DOWNLOAD]收集数据分块完成")
 		if sysTool.SysConfig.Status == false {
@@ -251,7 +250,7 @@ func fileHandle(source string) *filehandler.File {
 	file01.Init(source)
 	//分割文件名
 	name, ext := file01.SliceFileName()
-	glog.Infof("File %s.%s init finished", name,ext)
+	glog.Infof("File %s.%s init finished", name, ext)
 	//生成数据分块阵列
 	glog.Infoln("[处理上传文件]开始生成数据阵列")
 	file01.InitDataFiles()
@@ -269,7 +268,7 @@ func fileHandle(source string) *filehandler.File {
 
 func greetHandler(w http.ResponseWriter, r *http.Request) {
 	//在Master中建立空Node变量
-	var node nodeHandler.Node
+	var node nodehandler.Node
 	var existed = false
 	if r.Body == nil {
 		http.Error(w, "Please send a request body", 400)
@@ -290,23 +289,23 @@ func greetHandler(w http.ResponseWriter, r *http.Request) {
 	if existed {
 		//glog.Infof("Node [%d] already Existed", node.ID)
 		var volume = node.Volume
-		node = nodeHandler.AllNodes.Get(node.ID).(nodeHandler.Node)
+		node = nodehandler.AllNodes.Get(node.ID).(nodehandler.Node)
 		node.Volume = volume
 		//node.Status = true
 		//glog.Infof("Before Time : %d", node.LastTime)
 		node.LastTime = time.Now().UnixNano() / 1000000
-		nodeHandler.AllNodes.Set(node.ID,node)
+		nodehandler.AllNodes.Set(node.ID, node)
 		//glog.Infof("Refresh Time : %d", sysTool.safeMap[node.ID].LastTime)
 	} else {
-		nodeHandler.IDCounter.PlusSafeID()
-		node.ID = nodeHandler.IDCounter.GetSafeID()
+		nodehandler.IDCounter.PlusSafeID()
+		node.ID = nodehandler.IDCounter.GetSafeID()
 
 		glog.Infof("Hello %d\n", node.ID)
 
-		nodeHandler.EmptyNodes = append(nodeHandler.EmptyNodes, node.ID)
+		nodehandler.EmptyNodes = append(nodehandler.EmptyNodes, node.ID)
 		node.LastTime = time.Now().UnixNano() / 1000000
 
-		nodeHandler.AllNodes.Set(node.ID,node)
+		nodehandler.AllNodes.Set(node.ID, node)
 
 		if !node.AppendNode() {
 			glog.Infof("Still in Empty Slice %+v", node)
@@ -326,8 +325,8 @@ func restoreHandler(w http.ResponseWriter, r *http.Request) {
 	} else if sysTool.SysConfig.Status {
 		glog.Infoln("系统正常运行，无需修复.")
 		http.Redirect(w, r, "/node", http.StatusFound)
-	} else if len(nodeHandler.LostNodes) > sysTool.SysConfig.FaultNum {
-		glog.Warningf("丢失节点数 : %d", len(nodeHandler.LostNodes))
+	} else if len(nodehandler.LostNodes) > sysTool.SysConfig.FaultNum {
+		glog.Warningf("丢失节点数 : %d", len(nodehandler.LostNodes))
 		t, err := template.ParseFiles("view/info.html")
 		data := struct {
 			info string
@@ -338,7 +337,7 @@ func restoreHandler(w http.ResponseWriter, r *http.Request) {
 			glog.Errorln(err)
 		}
 		t.Execute(w, data)
-	} else if len(nodeHandler.EmptyNodes) < len(nodeHandler.LostNodes) {
+	} else if len(nodehandler.EmptyNodes) < len(nodehandler.LostNodes) {
 		t, err := template.ParseFiles("view/info.html")
 		data := struct {
 			info string
@@ -351,83 +350,48 @@ func restoreHandler(w http.ResponseWriter, r *http.Request) {
 		t.Execute(w, data)
 	} else {
 		//以前：将所有文件收集至中心节点
-		glog.Infoln("将空节点转换至丢失节点")
-
+		glog.Infoln("开始将空节点转换至丢失节点")
 		//处理丢失节点，将空节点转化为丢失节点，为空节点设置新ID
-		for i := 0; i < len(nodeHandler.LostNodes); i++ {
-			prevLostID := nodeHandler.LostNodes[i]
-			empID := nodeHandler.EmptyNodes[i]
-
-			//node : 空节点对象
-			node := nodeHandler.AllNodes.Get(empID).(nodeHandler.Node)
-			//生成url
-			url := "http://" + node.Address.String() + ":" + strconv.Itoa(node.Port) + "/resetid"
-			glog.Info("[Reset ID] URL " + url)
-
-			//向空节点发送重设ID请求
-			req, err := http.NewRequest("POST", url, nil)
-			if err != nil {
-				glog.Errorln(err)
-				panic(err)
-			}
-			req.Header.Set("NewID", strconv.Itoa((int)(prevLostID)))
-			resp, err := http.DefaultClient.Do(req)
-			if err != nil {
-				glog.Errorln(err)
-				panic(err)
-			}
-			defer resp.Body.Close()
-			respBody, err := ioutil.ReadAll(resp.Body)
-			if err != nil {
-				glog.Errorln(err)
-				panic(err)
-			}
-			glog.Info(resp.Status)
-			glog.Info(string(respBody))
-			glog.Infof("空节点 ID : %d, 丢失节点ID : %d", empID, prevLostID)
-			//转化完成，得到新节点信息
-			node.ID = prevLostID
-			node.Status = false
-			nodeHandler.AllNodes.Set(prevLostID,node)
-			glog.Infof("用于恢复的节点ID : %d", node.ID)
+		for i := 0; i < len(nodehandler.LostNodes); i++ {
+			prevLostID := nodehandler.LostNodes[i]
+			empID := nodehandler.EmptyNodes[i]
+			nodehandler.EmptyNodeToLostNode(empID, prevLostID)
 		}
+		glog.Infoln("将空节点转换至丢失节点完成")
 
 		//TODO: 开始解码恢复 循环所有文件，为每个文件开一个线程用于恢复
 		var waitGroup sync.WaitGroup
-
-		allFileListTemp:=filehandler.AllFiles.Items()
+		allFileListTemp := filehandler.AllFiles.Items()
 		for _, value := range allFileListTemp {
-			converted, ok := value.(filehandler.File)
-			if ok {
-				waitGroup.Add(1)
-				go func() {
-					defer waitGroup.Done()
-					//执行对单个文件的恢复
-					converted.LostHandle()
-				}()
-			}
+			converted, _ := value.(filehandler.File)
+			waitGroup.Add(1)
+			go func() {
+				defer waitGroup.Done()
+				//执行对单个文件的恢复
+				converted.LostHandle()
+			}()
 		}
 
 		//阻塞，等待全部文件恢复完成
 		waitGroup.Wait()
 
 		//恢复完成，丢失节点状态设为正常
-		for i := 0; i < len(nodeHandler.LostNodes); i++ {
-			node := nodeHandler.AllNodes.Get(nodeHandler.LostNodes[i]).(nodeHandler.Node)
+		for i := 0; i < len(nodehandler.LostNodes); i++ {
+			node := nodehandler.AllNodes.Get(nodehandler.LostNodes[i]).(nodehandler.Node)
 			node.Status = true
-			nodeHandler.AllNodes.Set(nodeHandler.LostNodes[i],node)
+			nodehandler.AllNodes.Set(nodehandler.LostNodes[i], node)
 		}
 
 		//删除已转化的空节点
-		for i := 0; i < len(nodeHandler.LostNodes); i++ {
-			nodeHandler.AllNodes.Delete(nodeHandler.EmptyNodes[0])
-			nodeHandler.EmptyNodes = append(nodeHandler.EmptyNodes[:0], nodeHandler.EmptyNodes[1:]...)
+		for i := 0; i < len(nodehandler.LostNodes); i++ {
+			nodehandler.AllNodes.Delete(nodehandler.EmptyNodes[0])
+			nodehandler.EmptyNodes = append(nodehandler.EmptyNodes[:0], nodehandler.EmptyNodes[1:]...)
 		}
 		//清空失效节点列表
-		nodeHandler.LostNodes = []uint{}
+		nodehandler.LostNodes = []uint{}
 		//系统状态设为正常
 		sysTool.SysConfig.Status = true
-		//前段显示信息提示页面
+		//前端显示信息提示页面
 		t, err := template.ParseFiles("view/info.html")
 		data := struct {
 			info string
