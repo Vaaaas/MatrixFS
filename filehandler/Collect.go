@@ -26,37 +26,39 @@ func (file File) CollectFiles() {
 			}
 		}
 	}
-	if file.Size <= 1000 {
-		for i := 0; i < sysTool.SysConfig.RddtNum; i++ {
-			//只需要第一个
-			getOneFile(file, false, nodeHandler.RddtNodes[i], i, 0, i)
-		}
-	} else {
-		nodeCounter := 0
-		fileCounter := 0
-		rddtFileCounter := 0
-		for fCounter := 0; fCounter < sysTool.SysConfig.FaultNum; fCounter++ {
-			k := (int)((fCounter + 2) / 2 * (int)(math.Pow(-1, (float64)(fCounter+2))))
-			for fileCounter < sysTool.SysConfig.DataNum {
-				//glog.Infof("从节点获取冗余文件 Rddt Node Num : %d \t k : %d \t fileCounter : %d \t nodeCounter : %d\n", nodeCounter, k, fileCounter, nodeCounter)
-				node := nodeHandler.AllNodes.Get(nodeHandler.RddtNodes[nodeCounter]).(nodeHandler.Node)
-				if node.Status == true {
-					getOneFile(file, false, nodeHandler.RddtNodes[nodeCounter], k, fileCounter, nodeCounter)
-				}
-				fileCounter++
-				rddtFileCounter++
-				if rddtFileCounter%(sysTool.SysConfig.SliceNum/sysTool.SysConfig.DataNum) == 0 {
-					nodeCounter++
-					rddtFileCounter = 0
-				}
-				if fileCounter != sysTool.SysConfig.DataNum {
-					continue
-				}
-				fileCounter = 0
-				break
-			}
-		}
-	}
+	//if needRddt{
+	//	if file.Size <= 1000 {
+	//		for i := 0; i < sysTool.SysConfig.RddtNum; i++ {
+	//			//只需要第一个
+	//			getOneFile(file, false, nodeHandler.RddtNodes[i], i, 0, i)
+	//		}
+	//	} else {
+	//		nodeCounter := 0
+	//		fileCounter := 0
+	//		rddtFileCounter := 0
+	//		for fCounter := 0; fCounter < sysTool.SysConfig.FaultNum; fCounter++ {
+	//			k := (int)((fCounter + 2) / 2 * (int)(math.Pow(-1, (float64)(fCounter+2))))
+	//			for fileCounter < sysTool.SysConfig.DataNum {
+	//				//glog.Infof("从节点获取冗余文件 Rddt Node Num : %d \t k : %d \t fileCounter : %d \t nodeCounter : %d\n", nodeCounter, k, fileCounter, nodeCounter)
+	//				node := nodeHandler.AllNodes.Get(nodeHandler.RddtNodes[nodeCounter]).(nodeHandler.Node)
+	//				if node.Status == true {
+	//					getOneFile(file, false, nodeHandler.RddtNodes[nodeCounter], k, fileCounter, nodeCounter)
+	//				}
+	//				fileCounter++
+	//				rddtFileCounter++
+	//				if rddtFileCounter%(sysTool.SysConfig.SliceNum/sysTool.SysConfig.DataNum) == 0 {
+	//					nodeCounter++
+	//					rddtFileCounter = 0
+	//				}
+	//				if fileCounter != sysTool.SysConfig.DataNum {
+	//					continue
+	//				}
+	//				fileCounter = 0
+	//				break
+	//			}
+	//		}
+	//	}
+	//}
 }
 
 func getOneFile(file File, isData bool, nodeID uint, posiX, posiY, rddtNodePos int) bool {
