@@ -81,7 +81,7 @@ func (file File) initOneDataFile(col int, row int, sourceFile *os.File) error {
 	//构造分块文件名
 	filePath := structSliceFileName("./temp", true, col, file.FileFullName, col, row)
 	//建立分块文件
-	outFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, os.ModePerm)
+	outFile, err := os.Create(filePath)
 	if err != nil {
 		glog.Error("新建数据分块文件失败 " + "./temp/Data." + strconv.Itoa(col) + "/" + file.FileFullName + "." + strconv.Itoa(col) + strconv.Itoa(row))
 		panic(err)
@@ -169,7 +169,7 @@ func (file File) InitRddtFiles() error {
 //具体编码生成某个校验文件
 func (file File) initOneRddtFile(startNodeNum, k, rddtNodePos int) error {
 	filePath := structSliceFileName("./temp", false, rddtNodePos, file.FileFullName, k, startNodeNum)
-	rddtFileObj, err := os.OpenFile(filePath, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, os.ModePerm)
+	rddtFileObj, err := os.Create(filePath)
 	if err != nil {
 		glog.Error("新建冗余分块文件失败 " + filePath)
 		panic(err)
@@ -277,7 +277,6 @@ func postOneFile(file File, isData bool, nodeID uint, posiX, posiY, nodeCounter 
 	} else {
 		filePath = structSliceFileName("./temp", false, nodeCounter, file.FileFullName, posiX, posiY)
 	}
-	glog.Infoln("[向节点发送文件]"+filePath)
 	//编写请求body
 	fileWriter, err := bodyWriter.CreateFormFile("uploadfile", filePath)
 	if err != nil {
@@ -302,7 +301,6 @@ func postOneFile(file File, isData bool, nodeID uint, posiX, posiY, nodeCounter 
 	//设定url
 	node := nodehandler.AllNodes.Get(nodeID).(nodehandler.Node)
 	url := "http://" + node.Address.String() + ":" + strconv.Itoa(node.Port) + "/upload"
-	glog.Infoln("[向节点发送文件] URL "+url)
 	resp, err := http.Post(url, contentType, bodyBuf)
 	if err != nil {
 		glog.Errorln(err)

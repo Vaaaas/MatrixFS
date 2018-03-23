@@ -8,6 +8,7 @@ import (
 
 	"github.com/Vaaaas/MatrixFS/nodehandler"
 	"github.com/Vaaaas/MatrixFS/util"
+	"github.com/golang/glog"
 )
 
 //CollectFiles 从存储节点收集全部分块文件到中心节点
@@ -34,7 +35,7 @@ func getOneFile(file File, isData bool, nodeID uint, posiX, posiY, rddtNodePos i
 	} else {
 		filePath = structSliceFileName("./temp", false, rddtNodePos, file.FileFullName, posiX, posiY)
 	}
-	//glog.Infof("从节点收集文件 filePath : %s, fileName : %s", filePath, fileName)
+	glog.Infof("从节点收集文件 filePath : %s, fileName : %s", filePath, fileName)
 	node := nodehandler.AllNodes.Get(nodeID).(nodehandler.Node)
 	url := "http://" + node.Address.String() + ":" + strconv.Itoa(node.Port) + "/download/" + fileName
 	res, _ := http.Get(url)

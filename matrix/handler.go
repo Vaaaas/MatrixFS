@@ -347,8 +347,11 @@ func restoreHandler(w http.ResponseWriter, r *http.Request) {
 
 		//删除已转化的空节点
 		for i := 0; i < len(nodehandler.LostNodes); i++ {
+			glog.Warningf("[Delete removed empty nodes] i = %d",i)
 			nodehandler.AllNodes.Delete(nodehandler.EmptyNodes[0])
-			nodehandler.EmptyNodes = append(nodehandler.EmptyNodes[:0], nodehandler.EmptyNodes[1:]...)
+			if len(nodehandler.EmptyNodes)>0{
+				nodehandler.EmptyNodes = append(nodehandler.EmptyNodes[:0], nodehandler.EmptyNodes[1:]...)
+			}
 		}
 		//清空失效节点列表
 		nodehandler.LostNodes = []uint{}

@@ -29,11 +29,6 @@ func fileExistedInCenter(filePath string) bool {
 	return !os.IsNotExist(err)
 }
 
-//fileExistInNode 查看某个文件能否从节点获取
-func fileExistInNode(file File, isData bool, nodeID uint, posiX, posiY, rddtNodePos int) bool {
-	return getOneFile(file, isData, nodeID, posiX, posiY, rddtNodePos)
-}
-
 //Init 初始化文件对象
 func (file *File) Init(source string) error {
 	//获取原始文件属性
