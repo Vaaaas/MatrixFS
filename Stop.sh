@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-for k in $( seq 0 25 )
+for k in $( seq 0 4 )
 do
-    pkill -9 "node${k}" &
+    pkill -9 -o "node${k}" &
 done
 wait
 exit

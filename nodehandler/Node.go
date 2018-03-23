@@ -7,15 +7,15 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/Vaaaas/MatrixFS/sysTool"
+	"github.com/Vaaaas/MatrixFS/util"
 	"github.com/golang/glog"
 )
 
 //IDCounter ID 线程安全计数器
-var IDCounter *sysTool.SafeID
+var IDCounter *util.SafeID
 
 //AllNodes key：节点ID Value：节点对象
-var AllNodes *sysTool.SafeMap
+var AllNodes *util.SafeMap
 
 //DataNodes 数据节点ID列表
 var DataNodes []uint
@@ -51,16 +51,16 @@ const (
 
 //AppendNode Node的成员 将空节点加入数据或校验节点列表（如果全部满，则仍为空节点）
 func (node Node) AppendNode() bool {
-	if sysTool.SysConfig.DataNum - len(DataNodes) > 0 {
+	if util.SysConfig.DataNum - len(DataNodes) > 0 {
 		DataNodes = append(DataNodes, node.ID)
-		index := sysTool.GetIndexInAll(len(EmptyNodes), func(i int) bool {
+		index := util.GetIndexInAll(len(EmptyNodes), func(i int) bool {
 			return EmptyNodes[i] == node.ID
 		})
 		EmptyNodes = append(EmptyNodes[:index], EmptyNodes[index+1:]...)
 		return true
-	} else if sysTool.SysConfig.RddtNum - len(RddtNodes) > 0 {
+	} else if util.SysConfig.RddtNum - len(RddtNodes) > 0 {
 		RddtNodes = append(RddtNodes, node.ID)
-		index := sysTool.GetIndexInAll(len(EmptyNodes), func(i int) bool {
+		index := util.GetIndexInAll(len(EmptyNodes), func(i int) bool {
 			return EmptyNodes[i] == node.ID
 		})
 		EmptyNodes = append(EmptyNodes[:index], EmptyNodes[index+1:]...)
@@ -74,7 +74,6 @@ func (node Node) AppendNode() bool {
 func (node Node) GetIndexInDataNodes() int {
 	for index, nodeID := range DataNodes {
 		if node.ID == nodeID {
-			glog.Infof("Index in All Data Nodes is : %d", index)
 			return index
 		}
 	}
@@ -102,7 +101,7 @@ func EmptyNodeToLostNode(empID, lostID uint) {
 	node := AllNodes.Get(empID).(Node)
 	//生成url
 	url := "http://" + node.Address.String() + ":" + strconv.Itoa(node.Port) + "/resetid"
-	glog.Info("[Reset ID] URL " + url)
+	glog.Info("[EmptyNodeToLostNode] URL " + url)
 	//向空节点发送重设ID请求
 	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
@@ -116,13 +115,11 @@ func EmptyNodeToLostNode(empID, lostID uint) {
 		panic(err)
 	}
 	defer resp.Body.Close()
-	respBody, err := ioutil.ReadAll(resp.Body)
+	_, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
 		glog.Errorln(err)
 		panic(err)
 	}
-	glog.Info(resp.Status)
-	glog.Info(string(respBody))
 	glog.Infof("空节点 ID : %d, 丢失节点ID : %d", empID, lostID)
 	//转化完成，得到新节点信息
 	node.ID = lostID

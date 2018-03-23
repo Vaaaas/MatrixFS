@@ -8,7 +8,7 @@ import (
 
 	"github.com/Vaaaas/MatrixFS/filehandler"
 	"github.com/Vaaaas/MatrixFS/nodehandler"
-	"github.com/Vaaaas/MatrixFS/sysTool"
+	"github.com/Vaaaas/MatrixFS/util"
 	"github.com/golang/glog"
 )
 
@@ -29,11 +29,11 @@ func main() {
 		glog.Errorln(err)
 	}
 
-	nodehandler.IDCounter = sysTool.NewSafeID()
+	nodehandler.IDCounter = util.NewSafeID()
 	//初始化节点Map
-	nodehandler.AllNodes = sysTool.NewSafeMap()
+	nodehandler.AllNodes = util.NewSafeMap()
 	//初始化文件Map
-	filehandler.AllFiles = sysTool.NewSafeMap()
+	filehandler.AllFiles = util.NewSafeMap()
 
 	//页面处理方法
 	http.HandleFunc("/", rootHandler)
@@ -80,7 +80,7 @@ func onDeleted(node *nodehandler.Node) {
 	var isEmpty = false
 	for _, value := range nodehandler.EmptyNodes {
 		if value == node.ID {
-			glog.Info("Empty Node Found")
+			glog.Info("已在空节点列表中找到丢失的空节点")
 			isEmpty = true
 		}
 	}
@@ -88,23 +88,22 @@ func onDeleted(node *nodehandler.Node) {
 	if isEmpty {
 		//If Empty Node Lost, delete from all & Empty Slices
 		nodehandler.AllNodes.Delete(node.ID)
-		index := sysTool.GetIndexInAll(len(nodehandler.EmptyNodes), func(i int) bool {
+		index := util.GetIndexInAll(len(nodehandler.EmptyNodes), func(i int) bool {
 			return nodehandler.EmptyNodes[i] == node.ID
 		})
 		nodehandler.EmptyNodes = append(nodehandler.EmptyNodes[:index], nodehandler.EmptyNodes[index+1:]...)
-		glog.Info("已删除空节点")
+		glog.Warning("空节点丢失，已删除空节点")
 	} else {
 		var lostExist = false
 		for _, value := range nodehandler.LostNodes {
 			if value == node.ID {
-				//glog.Info("该节点为已丢失节点 : %d", node.ID)
 				lostExist = true
 			}
 		}
 		if !lostExist {
 			nodehandler.LostNodes = append(nodehandler.LostNodes, node.ID)
-			sysTool.SysConfig.Status = false
-			glog.Infof("新的丢失节点, SysConfigure 变为 false, 丢失节点ID : %d", node.ID)
+			util.SysConfig.Status = false
+			glog.Warningf("新的丢失节点, SysConfigure 变为 false, 丢失节点ID : %d", node.ID)
 		}
 	}
 }

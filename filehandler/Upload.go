@@ -11,7 +11,7 @@ import (
 	"strconv"
 
 	"github.com/Vaaaas/MatrixFS/nodehandler"
-	"github.com/Vaaaas/MatrixFS/sysTool"
+	"github.com/Vaaaas/MatrixFS/util"
 	"github.com/golang/glog"
 )
 
@@ -51,9 +51,9 @@ func (file File) InitDataFiles() error {
 		panic(err)
 	}
 	defer sourceFile.Close()
-	if file.size <= 1000 {
+	if file.Size <= 1000 {
 		//原始文件大小不大于1000 Byte
-		for i := 0; i < sysTool.SysConfig.DataNum; i++ {
+		for i := 0; i < util.SysConfig.DataNum; i++ {
 			//为每个数据节点拷贝一份副本
 			if file.copyFile(true, i, sourceFile) != nil {
 				glog.Errorf("生成副本文件失败 i=%d", i)
@@ -62,8 +62,8 @@ func (file File) InitDataFiles() error {
 		}
 	} else {
 		//原始文件大于1000 Byte
-		for i := 0; i < sysTool.SysConfig.DataNum; i++ {
-			for j := 0; j < sysTool.SysConfig.RowNum; j++ {
+		for i := 0; i < util.SysConfig.DataNum; i++ {
+			for j := 0; j < util.SysConfig.RowNum; j++ {
 				//生成一个数据分块
 				if file.initOneDataFile(i, j, sourceFile) != nil {
 					glog.Errorf("生成单个数据文件文件失败 i=%d j=%d", i, j)
@@ -91,11 +91,10 @@ func (file File) initOneDataFile(col int, row int, sourceFile *os.File) error {
 	buffer := make([]byte, file.sliceSize)
 	//判断哪一个分块是原始数据文件的结尾，那么该分块仍需要读取文件，剩下的分块就只需要填充
 	fillSliceCount := (int)(file.fillSize/file.sliceSize) + 1
-	if file.fillLast && col*sysTool.SysConfig.RowNum+row == sysTool.SysConfig.SliceNum-fillSliceCount {
+	if file.fillLast && col*util.SysConfig.RowNum+row == util.SysConfig.SliceNum-fillSliceCount {
 		//需要补充 && 第一个补充分块混合原文件和0
 		//先读取原文件中剩余的数据
 		n, err := sourceFile.Read(buffer)
-		glog.Infof("【混合分块】DataCol = %d，Row = %d， bufferUsed = %d", col, row, n)
 		if err != nil && err != io.EOF {
 			glog.Errorf("buffer读取文件失败 col=%d row=%d", col, row)
 			panic(err)
@@ -104,10 +103,8 @@ func (file File) initOneDataFile(col int, row int, sourceFile *os.File) error {
 		for j := n; (int64)(j) < file.sliceSize; j++ {
 			buffer[j] = (byte)(0)
 		}
-	} else if file.fillLast && col*sysTool.SysConfig.RowNum+row > sysTool.SysConfig.SliceNum-fillSliceCount {
+	} else if file.fillLast && col*util.SysConfig.RowNum+row > util.SysConfig.SliceNum-fillSliceCount {
 		//需要补充 && (混合点以后 或 第一个即为全0点)
-		glog.Infof("【需要补充 && (混合点以后 或 第一个即为全0点)】col*sysTool.SysConfig.RowNum+row = %d", col*sysTool.SysConfig.RowNum+row)
-		glog.Infof("【需要补充 && (混合点以后 或 第一个即为全0点)】DataCol = %d，Row = %d", col, row)
 		for j := 0; (int64)(j) < file.fillSize; j++ {
 			buffer[j] = (byte)(0)
 			if _, err := outFile.Write(buffer[:file.sliceSize]); err != nil {
@@ -134,7 +131,7 @@ func (file File) initOneDataFile(col int, row int, sourceFile *os.File) error {
 
 //InitRddtFiles 生成校验文件
 func (file File) InitRddtFiles() error {
-	if file.size <= 1000 {
+	if file.Size <= 1000 {
 		source := "./temp/" + file.FileFullName
 		//打开原始文件
 		sourceFile, err := os.Open(source)
@@ -143,7 +140,7 @@ func (file File) InitRddtFiles() error {
 			panic(err)
 		}
 		defer sourceFile.Close()
-		for i := 0; i < sysTool.SysConfig.RddtNum; i++ {
+		for i := 0; i < util.SysConfig.RddtNum; i++ {
 			//为每个校验节点拷贝一份副本
 			if file.copyFile(false, i, sourceFile) != nil {
 				glog.Errorf("生成副本文件失败 i=%d", i)
@@ -153,10 +150,10 @@ func (file File) InitRddtFiles() error {
 	} else {
 		rddtFolderCounter := 0
 		rddtRowCounter := 0
-		for faultCount := 0; faultCount < sysTool.SysConfig.FaultNum; faultCount++ {
+		for faultCount := 0; faultCount < util.SysConfig.FaultNum; faultCount++ {
 			k := (int)((faultCount + 2) / 2 * (int)(math.Pow(-1, (float64)(faultCount+2))))
-			for i := 0; i < sysTool.SysConfig.DataNum; i++ {
-				if rddtRowCounter%sysTool.SysConfig.RowNum == 0 && (i != 0 || faultCount != 0) {
+			for i := 0; i < util.SysConfig.DataNum; i++ {
+				if rddtRowCounter%util.SysConfig.RowNum == 0 && (i != 0 || faultCount != 0) {
 					rddtRowCounter = 1
 					rddtFolderCounter++
 				} else {
@@ -179,12 +176,12 @@ func (file File) initOneRddtFile(startNodeNum, k, rddtNodePos int) error {
 	}
 	defer rddtFileObj.Close()
 	buffer := make([]byte, file.sliceSize)
-	for i := 0; i < sysTool.SysConfig.RowNum; i++ {
+	for i := 0; i < util.SysConfig.RowNum; i++ {
 		folderPosi := startNodeNum + k*i
-		if folderPosi >= sysTool.SysConfig.DataNum {
-			folderPosi = folderPosi - sysTool.SysConfig.DataNum
+		if folderPosi >= util.SysConfig.DataNum {
+			folderPosi = folderPosi - util.SysConfig.DataNum
 		} else if folderPosi < 0 {
-			folderPosi = sysTool.SysConfig.DataNum + folderPosi
+			folderPosi = util.SysConfig.DataNum + folderPosi
 		}
 		filePath := structSliceFileName("./temp", true, folderPosi, file.FileFullName, folderPosi, i)
 		sourceFile, err := os.Open(filePath)
@@ -192,7 +189,6 @@ func (file File) initOneRddtFile(startNodeNum, k, rddtNodePos int) error {
 			glog.Error("生成冗余文件 " + filePath)
 			panic(err)
 		}
-		defer sourceFile.Close()
 		if i == 0 {
 			_, err = sourceFile.Read(buffer)
 			if err != nil && err != io.EOF {
@@ -210,8 +206,9 @@ func (file File) initOneRddtFile(startNodeNum, k, rddtNodePos int) error {
 				buffer[byteCounter] = buffer[byteCounter] ^ tempBytes[byteCounter]
 			}
 		}
+		sourceFile.Close()
 		//循环到最后才写入文件
-		if i == sysTool.SysConfig.RowNum-1 {
+		if i == util.SysConfig.RowNum-1 {
 			if _, err := rddtFileObj.Write(buffer[:file.sliceSize]); err != nil {
 				glog.Error("写入冗余分块文件失败 " + filePath)
 				panic(err)
@@ -224,47 +221,43 @@ func (file File) initOneRddtFile(startNodeNum, k, rddtNodePos int) error {
 //SendToNode 将某个文件发送至对应存储节点
 func (file File) SendToNode() {
 	//发送数据分块
-	for i := 0; i < sysTool.SysConfig.DataNum; i++ {
-		if file.size <= 1000 {
+	for i := 0; i < util.SysConfig.DataNum; i++ {
+		if file.Size <= 1000 {
 			postOneFile(file, true, nodehandler.DataNodes[i], i, 0, 0)
 		} else {
 			//当有节点丢失且当前分块需要发往丢失节点时，直接跳过
-			//glog.Infoln("nodeHandler.DataNodes index: "+strconv.Itoa(i))
-			//glog.Infoln("Data ID: "+strconv.Itoa((int)(nodeHandler.DataNodes[i])))
-
 			node := nodehandler.AllNodes.Get(nodehandler.DataNodes[i]).(nodehandler.Node)
-			if sysTool.SysConfig.Status == false && node.Status == false {
+			if util.SysConfig.Status == false && node.Status == false {
 				continue
 			}
-			for j := 0; j < sysTool.SysConfig.RowNum; j++ {
+			for j := 0; j < util.SysConfig.RowNum; j++ {
 				postOneFile(file, true, nodehandler.DataNodes[i], i, j, 0)
 			}
 		}
 	}
 	//发送校验分块
-	if file.size <= 1000 {
-		for i := 0; i < sysTool.SysConfig.RddtNum; i++ {
+	if file.Size <= 1000 {
+		for i := 0; i < util.SysConfig.RddtNum; i++ {
 			postOneFile(file, false, nodehandler.RddtNodes[i], i, 0, 0)
 		}
 	} else {
 		nodeCounter := 0
 		fileCounter := 0
 		rddtFileCounter := 0
-		for xx := 0; xx < sysTool.SysConfig.FaultNum; xx++ {
+		for xx := 0; xx < util.SysConfig.FaultNum; xx++ {
 			k := (int)((xx + 2) / 2 * (int)(math.Pow(-1, (float64)(xx+2))))
-			for fileCounter < sysTool.SysConfig.DataNum {
-				//glog.Infof("Rddt Node Num : %d \t k : %d \t fileCounter : %d \t nodeCounter : %d\n", nodeCounter, k, fileCounter, nodeCounter)
+			for fileCounter < util.SysConfig.DataNum {
 				node := nodehandler.AllNodes.Get(nodehandler.RddtNodes[nodeCounter]).(nodehandler.Node)
-				if sysTool.SysConfig.Status == true && node.Status == true {
+				if util.SysConfig.Status == true && node.Status == true {
 					postOneFile(file, false, nodehandler.RddtNodes[nodeCounter], k, fileCounter, nodeCounter)
 				}
 				fileCounter++
 				rddtFileCounter++
-				if rddtFileCounter%(sysTool.SysConfig.SliceNum/sysTool.SysConfig.DataNum) == 0 {
+				if rddtFileCounter%(util.SysConfig.SliceNum/util.SysConfig.DataNum) == 0 {
 					nodeCounter++
 					rddtFileCounter = 0
 				}
-				if fileCounter != sysTool.SysConfig.DataNum {
+				if fileCounter != util.SysConfig.DataNum {
 					continue
 				}
 				fileCounter = 0
@@ -284,6 +277,7 @@ func postOneFile(file File, isData bool, nodeID uint, posiX, posiY, nodeCounter 
 	} else {
 		filePath = structSliceFileName("./temp", false, nodeCounter, file.FileFullName, posiX, posiY)
 	}
+	glog.Infoln("[向节点发送文件]"+filePath)
 	//编写请求body
 	fileWriter, err := bodyWriter.CreateFormFile("uploadfile", filePath)
 	if err != nil {
@@ -308,6 +302,7 @@ func postOneFile(file File, isData bool, nodeID uint, posiX, posiY, nodeCounter 
 	//设定url
 	node := nodehandler.AllNodes.Get(nodeID).(nodehandler.Node)
 	url := "http://" + node.Address.String() + ":" + strconv.Itoa(node.Port) + "/upload"
+	glog.Infoln("[向节点发送文件] URL "+url)
 	resp, err := http.Post(url, contentType, bodyBuf)
 	if err != nil {
 		glog.Errorln(err)
@@ -320,8 +315,6 @@ func postOneFile(file File, isData bool, nodeID uint, posiX, posiY, nodeCounter 
 		glog.Errorln(err)
 		panic(err)
 	}
-	//glog.Info(resp.Status)
-	//glog.Info(string(respbody))
 }
 
 //GetFile 将收集到的数据分块写入中心节点中的临时副本文件，用于发送给用户
@@ -334,7 +327,7 @@ func (file File) GetFile(targetFolder string) error {
 	}
 	defer target.Close()
 
-	if file.size <= 1000 {
+	if file.Size <= 1000 {
 		//直接读取（0，0）处的副本
 		buffer := make([]byte, file.sliceSize)
 		filePath := structSliceFileName("./temp", true, 0, file.FileFullName, 0, 0)
@@ -356,18 +349,18 @@ func (file File) GetFile(targetFolder string) error {
 	} else {
 		var realSliceNum int64
 		//确定分块数
-		if file.size%file.sliceSize != 0 {
-			realSliceNum = file.size/file.sliceSize + 1
+		if file.Size%file.sliceSize != 0 {
+			realSliceNum = file.Size/file.sliceSize + 1
 		} else {
-			realSliceNum = file.size / file.sliceSize
+			realSliceNum = file.Size / file.sliceSize
 		}
 		glog.Infoln("[Compile Slices]")
 		buffer := make([]byte, file.sliceSize)
 		for i := 0; (int64)(i) < realSliceNum; i++ {
 			//数据阵列中的列数，也就是DataNodes中的Index
-			dataPosition := i / sysTool.SysConfig.RowNum
+			dataPosition := i / util.SysConfig.RowNum
 			//数据阵列中的行数，也就是RddtNodes中的Index
-			rowPosition := i % sysTool.SysConfig.RowNum
+			rowPosition := i % util.SysConfig.RowNum
 			//读取分块
 			filePath := structSliceFileName("./temp", true, dataPosition, file.FileFullName, dataPosition, rowPosition)
 			dataFile, err := os.Open(filePath)
@@ -375,19 +368,17 @@ func (file File) GetFile(targetFolder string) error {
 				glog.Error("读取数据分块文件失败 " + filePath)
 				panic(err)
 			}
-			defer dataFile.Close()
 			n, err := dataFile.Read(buffer)
+			dataFile.Close()
 			if err != nil && err != io.EOF {
 				glog.Error("buffer读取文件失败 " + strconv.Itoa(i))
 				panic(err)
 			}
 			//判断哪一个分块是原始数据文件的结尾，那么该分块仍需要读取文件，剩下的分块就只需要填充
 			fillSliceCount := (int)(file.fillSize/file.sliceSize) + 1
-			//glog.Infof("[fillSliceCount]file.fillSize/file.sliceSize + 1 = %d",fillSliceCount)
-			if file.fillLast && dataPosition*sysTool.SysConfig.RowNum+rowPosition == sysTool.SysConfig.SliceNum-fillSliceCount {
+			if file.fillLast && dataPosition*util.SysConfig.RowNum+rowPosition == util.SysConfig.SliceNum-fillSliceCount {
 				//需要补充 && 第一个补充分块混合原文件和0
-				bufferNeeded := file.size % file.sliceSize
-				glog.Infof("【混合分块】DataCol = %d，Row = %d， bufferNeeded = %d", dataPosition, rowPosition, bufferNeeded)
+				bufferNeeded := file.Size % file.sliceSize
 				if _, err := target.Write(buffer[:bufferNeeded]); err != nil {
 					glog.Error("写入数据分块失败 " + strconv.Itoa(i))
 					panic(err)

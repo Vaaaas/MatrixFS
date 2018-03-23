@@ -6,17 +6,17 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Vaaaas/MatrixFS/sysTool"
+	"github.com/Vaaaas/MatrixFS/util"
 	"github.com/golang/glog"
 )
 
 //AllFiles key：节点ID Value：节点对象
-var AllFiles *sysTool.SafeMap
+var AllFiles *util.SafeMap
 
 //File 文件类
 type File struct {
 	FileFullName string
-	size         int64
+	Size         int64
 	fillLast     bool
 	fillSize     int64
 	sliceSize    int64
@@ -47,15 +47,15 @@ func (file *File) Init(source string) error {
 		return errors.New("初始化失败：该路径指向的是文件夹")
 	}
 	file.FileFullName = fileInfo.Name()
-	file.size = fileInfo.Size()
+	file.Size = fileInfo.Size()
 	//判断是否需要在文件末尾补0
-	if (file.size % (int64)(sysTool.SysConfig.SliceNum)) != 0 {
+	if (file.Size % (int64)(util.SysConfig.SliceNum)) != 0 {
 		file.fillLast = true
-		file.sliceSize = file.size/(int64)(sysTool.SysConfig.SliceNum) + 1
-		file.fillSize = file.sliceSize*(int64)(sysTool.SysConfig.SliceNum) - file.size
+		file.sliceSize = file.Size/(int64)(util.SysConfig.SliceNum) + 1
+		file.fillSize = file.sliceSize*(int64)(util.SysConfig.SliceNum) - file.Size
 	} else {
 		file.fillLast = false
-		file.sliceSize = file.size / (int64)(sysTool.SysConfig.SliceNum)
+		file.sliceSize = file.Size / (int64)(util.SysConfig.SliceNum)
 		file.fillSize = 0
 	}
 	glog.Infof("%+v ", file)

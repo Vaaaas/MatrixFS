@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/Vaaaas/MatrixFS/nodehandler"
-	"github.com/Vaaaas/MatrixFS/sysTool"
+	"github.com/Vaaaas/MatrixFS/util"
 	"github.com/golang/glog"
 )
 
@@ -16,37 +16,46 @@ func (file *File) LostHandle() bool {
 	glog.Infoln("开始执行 LostHandle() ")
 	glog.Infof("开始恢复文件 : %s", file.FileFullName)
 
-	if file.size <= 1000 {
-		var dataNodePos int
-		for i := 0; i < len(nodehandler.DataNodes); i++ {
-			if nodehandler.AllNodes.Get(nodehandler.DataNodes[i]).(nodehandler.Node).Status {
-				dataNodePos = i
-				getOneFile(*file, true, nodehandler.DataNodes[i], i, 0, 0)
-			}
-		}
-		source := structSliceFileName("./temp", true, dataNodePos, file.FileFullName, dataNodePos, 0)
-		//打开原始文件
-		sourceFile, err := os.Open(source)
-		if err != nil {
-			glog.Error("分割时打开源文件失败")
-			panic(err)
-		}
-		defer sourceFile.Close()
-		for i := 0; i < len(nodehandler.LostNodes); i++ {
-			if nodehandler.IsDataNode(nodehandler.LostNodes[i]) {
-				index := sysTool.GetIndexInAll(len(nodehandler.DataNodes), func(finder int) bool {
-					return nodehandler.DataNodes[finder] == nodehandler.LostNodes[i]
-				})
-				file.copyFile(true, index, sourceFile)
-				postOneFile(*file, true, nodehandler.DataNodes[index], index, 0, 0)
-			} else {
-				index := sysTool.GetIndexInAll(len(nodehandler.RddtNodes), func(finder int) bool {
-					return nodehandler.RddtNodes[finder] == nodehandler.LostNodes[i]
-				})
-				file.copyFile(false, index, sourceFile)
-				postOneFile(*file, false, nodehandler.RddtNodes[index], index, 0, 0)
-			}
-		}
+	if file.Size <= 1000 {
+		//TODO: <= 1000 恢复文件的方式不对
+		glog.Warningf("文件大小 %d 小于1000",file.Size)
+		//var dataNodePos int
+		//for i := 0; i < len(nodehandler.DataNodes); i++ {
+		//	if nodehandler.AllNodes.Get(nodehandler.DataNodes[i]).(nodehandler.Node).Status {
+		//		dataNodePos = i
+		//		getOneFile(*file, true, nodehandler.DataNodes[i], i, 0, 0)
+		//	}
+		//}
+		//targetFile := structSliceFileName("./temp", true, dataNodePos, file.FileFullName, dataNodePos, 0)
+		////打开要生成的文件
+		//outFile, err := os.OpenFile(targetFile, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, os.ModePerm)
+		//if err != nil {
+		//	glog.Error("新建要生成的副本文件失败 " + strconv.Itoa(dataNodePos) + "/" + file.FileFullName + "." + strconv.Itoa(dataNodePos) + strconv.Itoa(0))
+		//	panic(err)
+		//}
+		//defer outFile.Close()
+		//for i := 0; i < len(nodehandler.LostNodes); i++ {
+		//	if nodehandler.IsDataNode(nodehandler.LostNodes[i]) {
+		//		index := util.GetIndexInAll(len(nodehandler.DataNodes), func(finder int) bool {
+		//			return nodehandler.DataNodes[finder] == nodehandler.LostNodes[i]
+		//		})
+		//		source:=structSliceFileName()
+		//		sourceFile, err := os.Open(source)
+		//		if err != nil {
+		//			glog.Error("备份原始文件副本时打开源文件失败")
+		//			panic(err)
+		//		}
+		//		defer sourceFile.Close()
+		//		file.copyFile(true, index, sourceFile)
+		//		postOneFile(*file, true, nodehandler.DataNodes[index], index, 0, 0)
+		//	} else {
+		//		index := util.GetIndexInAll(len(nodehandler.RddtNodes), func(finder int) bool {
+		//			return nodehandler.RddtNodes[finder] == nodehandler.LostNodes[i]
+		//		})
+		//		file.copyFile(false, index, sourceFile)
+		//		postOneFile(*file, false, nodehandler.RddtNodes[index], index, 0, 0)
+		//	}
+		//}
 	} else {
 		var dataNodes []uint
 		var rddtNodes []uint
@@ -62,7 +71,7 @@ func (file *File) LostHandle() bool {
 		if len(dataNodes) != 0 {
 			//有数据节点丢失
 			var recFinish = true
-			for row := 0; row < sysTool.SysConfig.RowNum/2+1; row++ {
+			for row := 0; row < util.SysConfig.RowNum/2+1; row++ {
 				var rowResult = true
 				for col := 0; col < len(dataNodes); col++ {
 					//检测并恢复单个文件
@@ -75,7 +84,7 @@ func (file *File) LostHandle() bool {
 			if !recFinish {
 				recFinish = true
 				for !recFinish {
-					for row := 0; row < sysTool.SysConfig.RowNum/2+1; row++ {
+					for row := 0; row < util.SysConfig.RowNum/2+1; row++ {
 						var rowResult = true
 						for col := 0; col < len(dataNodes); col++ {
 							//检测并恢复单个文件
@@ -90,12 +99,12 @@ func (file *File) LostHandle() bool {
 		}
 		//生成丢失的校验分块
 		for i := 0; i < len(rddtNodes); i++ {
-			index := sysTool.GetIndexInAll(len(nodehandler.RddtNodes), func(finder int) bool {
+			index := util.GetIndexInAll(len(nodehandler.RddtNodes), func(finder int) bool {
 				return nodehandler.RddtNodes[finder] == nodehandler.LostNodes[i]
 			})
-			for row := 0; row < sysTool.SysConfig.RowNum; row++ {
-				posY := (index*sysTool.SysConfig.RowNum + row) % sysTool.SysConfig.DataNum
-				faultCount := (index*sysTool.SysConfig.RowNum + row) / sysTool.SysConfig.DataNum
+			for row := 0; row < util.SysConfig.RowNum; row++ {
+				posY := (index*util.SysConfig.RowNum + row) % util.SysConfig.DataNum
+				faultCount := (index*util.SysConfig.RowNum + row) / util.SysConfig.DataNum
 				k := (int)((faultCount + 2) / 2 * (int)(math.Pow(-1, (float64)(faultCount+2))))
 				file.detectKLine(posY, row, index, k)
 				file.initOneRddtFile(posY, k, index)
@@ -103,6 +112,7 @@ func (file *File) LostHandle() bool {
 			}
 		}
 	}
+	glog.Infof("文件恢复完成 : %s", file.FileFullName)
 	return true
 }
 
@@ -113,18 +123,20 @@ func (file File) detectDataFile(node nodehandler.Node, targetRow int) bool {
 	if fileExistedInCenter(filePath) {
 		return true
 	}
-	for fCount := 0; fCount < sysTool.SysConfig.FaultNum; fCount++ {
+	for fCount := 0; fCount < util.SysConfig.FaultNum; fCount++ {
 		k := (int)((fCount + 2) / 2 * (int)(math.Pow(-1, (float64)(fCount+2))))
 		var startDataNodePos = (node.GetIndexInDataNodes() - targetRow*k + len(nodehandler.DataNodes)) % len(nodehandler.DataNodes)
-		var rddtNodePos = (fCount*len(nodehandler.DataNodes) + startDataNodePos) / sysTool.SysConfig.RowNum
+		var rddtNodePos = (fCount*len(nodehandler.DataNodes) + startDataNodePos) / util.SysConfig.RowNum
 		glog.Info("Detecting Data File : " + "temp/Data." + strconv.Itoa(dataNodePos) + "/" + file.FileFullName + "." + strconv.Itoa(dataNodePos) + strconv.Itoa(targetRow))
 		//首先判断本地是否有该文件
 		if !file.detectRddtFile(rddtNodePos, k, startDataNodePos) {
+			glog.Warningf("当前k对应的校验文件不在中心节点 k=%d",k)
 			//当前k对应的校验文件不在中心节点
 			//尝试从存储节点下载该校验分块
 			if !getOneFile(file, false, nodehandler.RddtNodes[rddtNodePos], k, startDataNodePos, rddtNodePos) {
+				glog.Warningf("未能取得校验分块 ID : %d, k : %d, DataNum : %d",nodehandler.RddtNodes[rddtNodePos],k,startDataNodePos)
 				//未取得校验文件
-				if fCount == sysTool.SysConfig.FaultNum-1 {
+				if fCount == util.SysConfig.FaultNum-1 {
 					//直到最后一种斜率也不行
 					return false
 				}
@@ -132,23 +144,25 @@ func (file File) detectDataFile(node nodehandler.Node, targetRow int) bool {
 			}
 		}
 		if !file.detectKLine(dataNodePos, targetRow, rddtNodePos, k) {
-			if fCount == sysTool.SysConfig.FaultNum-1 {
+			glog.Warningf("码链不符合条件 ID : %d, k : %d, DataNum : %d",nodehandler.RddtNodes[rddtNodePos],k,startDataNodePos)
+			if fCount == util.SysConfig.FaultNum-1 {
 				//直到最后一种斜率也不行
 				return false
 			}
 			continue
 		}
+		glog.Infof("可以生成 RddtID : %d, k : %d, DataNum : %d",nodehandler.RddtNodes[rddtNodePos],k,startDataNodePos)
 		file.restoreDataFile(dataNodePos, rddtNodePos, k, targetRow)
 		postOneFile(file, true, nodehandler.DataNodes[dataNodePos], dataNodePos, targetRow, 0)
 		//收集对称数据分块对应的校验文件和码链
-		pairTargetRow := sysTool.SysConfig.RowNum - targetRow - 1
+		pairTargetRow := util.SysConfig.RowNum - targetRow - 1
 		if pairTargetRow != targetRow {
 			var pairRddtNodePos int
 			var pairStartDataNodePos = (node.GetIndexInDataNodes() - pairTargetRow*(-k) + len(nodehandler.DataNodes)) % len(nodehandler.DataNodes)
 			if k > 0 {
-				pairRddtNodePos = ((fCount+1)*len(nodehandler.DataNodes) + pairStartDataNodePos) / sysTool.SysConfig.RowNum
+				pairRddtNodePos = ((fCount+1)*len(nodehandler.DataNodes) + pairStartDataNodePos) / util.SysConfig.RowNum
 			} else {
-				pairRddtNodePos = ((fCount-1)*len(nodehandler.DataNodes) + pairStartDataNodePos) / sysTool.SysConfig.RowNum
+				pairRddtNodePos = ((fCount-1)*len(nodehandler.DataNodes) + pairStartDataNodePos) / util.SysConfig.RowNum
 			}
 			if getOneFile(file, false, nodehandler.RddtNodes[pairRddtNodePos], -k, pairStartDataNodePos, pairRddtNodePos) {
 				if file.detectKLine(pairStartDataNodePos, pairTargetRow, pairRddtNodePos, -k) {
@@ -177,7 +191,7 @@ func (file File) detectRddtFile(rddtNodePos, k, dataNodePos int) bool {
 func (file File) detectKLine(dataNodePos, targetRow, rddtNodePos, k int) bool {
 	var result = true
 	var startIndex = (dataNodePos - k*targetRow + len(nodehandler.DataNodes)) % len(nodehandler.DataNodes)
-	for rowCount := 0; rowCount < sysTool.SysConfig.RowNum; rowCount++ {
+	for rowCount := 0; rowCount < util.SysConfig.RowNum; rowCount++ {
 		if targetRow == rowCount {
 			continue
 		}
@@ -201,6 +215,7 @@ func (file File) detectKLine(dataNodePos, targetRow, rddtNodePos, k int) bool {
 
 //restoreDataFile 解码恢复单个数据分块
 func (file File) restoreDataFile(dataNodePos, rddtNodePos, k, targetRow int) {
+	glog.Infoln("[restoreDataFile] dataNodePos :%d, rddtNodePos :%d, k :%d, targetRow :%d,",dataNodePos,rddtNodePos,k,targetRow)
 	var startIndex = (dataNodePos - k*targetRow + len(nodehandler.DataNodes)) % len(nodehandler.DataNodes)
 	buffer := make([]byte, file.sliceSize)
 	filePath := structSliceFileName("./temp", false, rddtNodePos, file.FileFullName, k, startIndex)
@@ -215,7 +230,7 @@ func (file File) restoreDataFile(dataNodePos, rddtNodePos, k, targetRow int) {
 		glog.Error("RDDT 读取文件失败" + filePath)
 		panic(err)
 	}
-	for rowCount := 0; rowCount < sysTool.SysConfig.RowNum; rowCount++ {
+	for rowCount := 0; rowCount < util.SysConfig.RowNum; rowCount++ {
 		if targetRow == rowCount {
 			continue
 		}
@@ -228,7 +243,7 @@ func (file File) restoreDataFile(dataNodePos, rddtNodePos, k, targetRow int) {
 			glog.Error("tempBuffer 读取 Data 文件失败" + filePath)
 			panic(err)
 		}
-		defer dataFile.Close()
+		dataFile.Close()
 		glog.Infof("恢复中 len(buffer) : %d, len(tempBuffer) : %d, slicesize : %d", len(buffer), len(tempBytes), file.sliceSize)
 		for byteCounter := 0; byteCounter < len(buffer); byteCounter++ {
 			buffer[byteCounter] = buffer[byteCounter] ^ tempBytes[byteCounter]

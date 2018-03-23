@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/Vaaaas/MatrixFS/nodehandler"
-	"github.com/Vaaaas/go-disk-usage/du"
+	"github.com/Vaaaas/MatrixFS/util"
 	"github.com/golang/glog"
 )
 
@@ -64,19 +64,15 @@ func main() {
 	}
 	dir = strings.Replace(dir, "\\", "/", -1)
 	//获取存储节点本地存储路径的可用空间
-	diskUsage := du.NewDiskUsage(dir)
+	diskUsage := util.NewDiskUsage(dir)
 	volume := (float64)(diskUsage.Available()) / (float64)(1024*1024*1024)
 	glog.Infof("Node start here : %d", NodeAdd.Port)
-
 	glog.Infof("Store Path: %s, Free space: %f", StorePath, volume)
-
 	nodeInfo.ID = 0
 	initStruct(&nodeInfo, NodeAdd.IP, NodeAdd.Port, volume)
-
 	go func() {
 		for {
-			//glog.Info("Connect Master!")
-			connectMaster(MasterAdd)
+			connectMaster()
 			time.Sleep(4 * time.Second)
 		}
 	}()
@@ -84,19 +80,17 @@ func main() {
 	http.HandleFunc("/upload", uploadHandler)
 	http.HandleFunc("/delete", deleteHandler)
 	http.HandleFunc("/resetid", resetIDHandler)
-
 	http.Handle("/download/", http.StripPrefix("/download/", http.FileServer(http.Dir(StorePath))))
-
 	if err := http.ListenAndServe(":"+strconv.Itoa(NodeAdd.Port), nil); err != nil {
 		glog.Errorln(err)
 		panic(err)
 	}
 }
 
-func uploadHandler(w http.ResponseWriter, r *http.Request) {
+func uploadHandler(_ http.ResponseWriter, r *http.Request) {
 	glog.Infoln("[UPLOAD] method: ", r.Method)
 	if r.Method == "GET" {
-		glog.Infoln("[/UPLOAD] " + r.URL.Path)
+		glog.Warningln("[/UPLOAD] GET" + r.URL.Path)
 	} else {
 		r.ParseMultipartForm(32 << 20)
 		file, handler, err := r.FormFile("uploadfile")
@@ -106,13 +100,11 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		defer file.Close()
 		longSpl := strings.Split(handler.Filename, "/")
-
 		err = os.MkdirAll(StorePath+"/", 0766)
 		if err != nil {
 			glog.Errorln(err)
 			panic(err)
 		}
-
 		f, err := os.OpenFile(StorePath+"/"+longSpl[len(longSpl)-1], os.O_WRONLY|os.O_CREATE, 0666)
 		if err != nil {
 			glog.Error(err)
@@ -123,66 +115,48 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func deleteHandler(w http.ResponseWriter, r *http.Request) {
-	glog.Infoln("[DELETE] method: ", r.Method)
+func deleteHandler(_ http.ResponseWriter, r *http.Request) {
 	if r.Method == "DELETE" {
-		glog.Infoln("[/DELETE] " + r.URL.Path)
-
 		fileName := r.Header.Get("fileName")
 		glog.Info("File to Delete : " + fileName)
-
-		glog.Info("File to [Delete] Name: " + fileName)
 		if _, err := os.Stat(StorePath + "/" + fileName); os.IsNotExist(err) {
 			glog.Warningf("[File to Delete NOT EXIST] %s", StorePath+"/"+fileName)
 		} else {
 			err := os.Remove(StorePath + "/" + fileName)
 			if err != nil {
 				glog.Errorln(err)
-			} else {
-				glog.Infof("[File to Delete] %s", StorePath+"/"+fileName)
 			}
 		}
 
 	} else {
-		glog.Infoln("[/DELETE] else" + r.URL.Path)
+		glog.Warningln("[/DELETE] else" + r.URL.Path)
 	}
 }
 
-func resetIDHandler(w http.ResponseWriter, r *http.Request) {
-	glog.Infoln("[ResetID] method: ", r.Method)
+func resetIDHandler(_ http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
-		glog.Infoln("[/ResetID] " + r.URL.Path)
-
 		newID := r.Header.Get("NewID")
-
 		tmpID, err := strconv.Atoi(newID)
-
 		glog.Infof("NewID : %d, New Status : %t", tmpID, false)
-
 		if err != nil {
 			glog.Error(err)
 		}
 		nodeInfo.ID = (uint)(tmpID)
 		nodeInfo.Status = false
 	} else {
-		glog.Infoln("[/ResetID] else" + r.URL.Path)
+		glog.Warningln("[/ResetID] else" + r.URL.Path)
 	}
 }
 
-func connectMaster(master *net.TCPAddr) error {
+func connectMaster() error {
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
 		log.Fatal(err)
 	}
 	dir = strings.Replace(dir, "\\", "/", -1)
-	//Get Free Space of Storage Path
-	diskUsage := du.NewDiskUsage(dir)
+	diskUsage := util.NewDiskUsage(dir)
 	volume := (float64)(diskUsage.Available()) / (float64)(1024*1024*1024)
-	//glog.Infof("Store Path: %s, Free space: %f", StorePath, volume)
-
 	nodeInfo.Volume = volume
-	//glog.Infof("Connect to Master IP : %s", master.String())
-
 	b := new(bytes.Buffer)
 	json.NewEncoder(b).Encode(nodeInfo)
 	res, err := http.Post("http://"+MasterAdd.String()+"/greet", "application/json; charset=utf-8", b)
@@ -194,8 +168,6 @@ func connectMaster(master *net.TCPAddr) error {
 	if err != nil {
 		glog.Error(err)
 	}
-
-	//glog.Info("Connect Finished")
 	return nil
 }
 

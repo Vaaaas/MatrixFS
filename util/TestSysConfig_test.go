@@ -1,4 +1,4 @@
-package sysTool
+package util
 
 import (
 	"testing"

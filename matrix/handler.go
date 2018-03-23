@@ -13,19 +13,18 @@ import (
 
 	"github.com/Vaaaas/MatrixFS/filehandler"
 	"github.com/Vaaaas/MatrixFS/nodehandler"
-	"github.com/Vaaaas/MatrixFS/sysTool"
+	"github.com/Vaaaas/MatrixFS/util"
 	"github.com/golang/glog"
 )
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/" {
-
-		if !sysTool.SysConfigured() {
-			glog.Infoln("URL: " + r.URL.Path + " not configured, redirect to index.html")
+		if !util.SysConfigured() {
+			glog.Warningln("URL: " + r.URL.Path + " not configured, redirect to index.html")
 			http.Redirect(w, r, "/index", http.StatusFound)
 		} else {
 			if !nodehandler.NodeConfigured() {
-				glog.Infoln("URL: " + r.URL.Path + " Node not configured, redirect to node.html")
+				glog.Warningln("URL: " + r.URL.Path + " Node not configured, redirect to node.html")
 				http.Redirect(w, r, "/node", http.StatusFound)
 			} else {
 				glog.Infoln("URL: " + r.URL.Path + "configured, redirect to file.html")
@@ -33,11 +32,12 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	} else {
+		//TODO: 什么情况下到这里
 		if r.URL.Path == "/favicon.ico" {
 			glog.Infoln("[/favicon.ico] " + r.URL.Path)
 			http.ServeFile(w, r, "favicon.ico")
 		} else {
-			glog.Infoln("[/] " + r.URL.Path)
+			glog.Errorln("[/] " + r.URL.Path)
 			t, err := template.ParseFiles("view/404.html")
 			if err != nil {
 				glog.Errorln(err)
@@ -48,9 +48,9 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func indexPageHandler(w http.ResponseWriter, r *http.Request) {
-	if sysTool.SysConfigured() {
+	if util.SysConfigured() {
 		if !nodehandler.NodeConfigured() {
-			glog.Infoln("URL: " + r.URL.Path + " Node not configured, redirect to node.html")
+			glog.Warningln("URL: " + r.URL.Path + " Node not configured, redirect to node.html")
 			http.Redirect(w, r, "/node", http.StatusFound)
 		} else {
 			glog.Infoln("URL: " + r.URL.Path + " configured, redirect to file.html")
@@ -67,17 +67,14 @@ func indexPageHandler(w http.ResponseWriter, r *http.Request) {
 
 func nodeEnterHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	glog.Infoln("[File Page] method: ", r.Method)
 	if r.Method == "GET" {
-		if !sysTool.SysConfigured() {
-			glog.Infoln("URL: " + r.URL.Path + "not configured, redirect to index.html")
+		if !util.SysConfigured() {
+			glog.Warningln("URL: " + r.URL.Path + "not configured, redirect to index.html")
 			http.Redirect(w, r, "/index", http.StatusFound)
 			return
 		}
 	} else {
-		if !sysTool.SysConfigured() {
-			glog.Infoln("[Configure-Fault]" + r.Form["faultNumber"][0])
-			glog.Infoln("[Configure-Row]" + r.Form["rowNumber"][0])
+		if !util.SysConfigured() {
 			faultNum, err := strconv.Atoi(r.Form["faultNumber"][0])
 			if err != nil {
 				glog.Error("faultNumber参数转换为int失败")
@@ -87,7 +84,7 @@ func nodeEnterHandler(w http.ResponseWriter, r *http.Request) {
 				glog.Error("rowNumber参数转换为int失败")
 			}
 			//TODO: 初始化系统设定后, 上传文件前仍然需要确认存储节点?
-			sysTool.InitConfig(faultNum, rowNum)
+			util.InitConfig(faultNum, rowNum)
 		}
 	}
 	allNodesListTemp := nodehandler.AllNodes.Items()
@@ -104,10 +101,9 @@ func nodeEnterHandler(w http.ResponseWriter, r *http.Request) {
 		SystemStatus bool
 	}{
 		Nodes:        resultMap,
-		SystemStatus: sysTool.SysConfig.Status,
+		SystemStatus: util.SysConfig.Status,
 	}
 
-	glog.Infof("System Status : %s, Length of AllNodes : %d", strconv.FormatBool(sysTool.SysConfig.Status), nodehandler.AllNodes.Count())
 	t, err := template.ParseFiles("view/node.html")
 	if err != nil {
 		glog.Errorln(err)
@@ -117,19 +113,16 @@ func nodeEnterHandler(w http.ResponseWriter, r *http.Request) {
 
 func filePageHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	glog.Infoln("[File Page] method: ", r.Method)
-	if !sysTool.SysConfigured() {
-		glog.Infoln("URL: " + r.URL.Path + "not configured, redirect to index.html")
+	if !util.SysConfigured() {
+		glog.Warningln("URL: " + r.URL.Path + "not configured, redirect to index.html")
 		http.Redirect(w, r, "/index", http.StatusFound)
 		return
 	}
-	glog.Infof("Length of AllFiles : %d", filehandler.AllFiles.Count())
 	allFileListTemp := filehandler.AllFiles.Items()
-	var resultList []*filehandler.File
+	var resultList []filehandler.File
 	for _, value := range allFileListTemp {
 		result := value.(*filehandler.File)
-		resultList = append(resultList, result)
-		glog.Infoln("[Show File Page]File name Value: " + result.FileFullName)
+		resultList = append(resultList, *result)
 	}
 	t, err := template.ParseFiles("view/file.html")
 	if err != nil {
@@ -139,15 +132,15 @@ func filePageHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
-	glog.Infoln("[UPLOAD] method: ", r.Method)
 	if r.Method == "GET" {
-		glog.Infoln("[/UPLOAD] " + r.URL.Path)
+		glog.Warningln("[/UPLOAD] GET " + r.URL.Path)
 		t, err := template.ParseFiles("view/404.html")
 		if err != nil {
 			glog.Errorln(err)
 		}
 		t.Execute(w, nil)
 	} else {
+		glog.Infoln("[UPLOAD] " + r.URL.Path)
 		r.ParseMultipartForm(32 << 20)
 		file, handler, err := r.FormFile("uploadInput")
 		if err != nil {
@@ -182,34 +175,18 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	glog.Infoln("[DOWNLOAD] method: ", r.Method)
-	if !sysTool.SysConfigured() {
-		glog.Infoln("URL: " + r.URL.Path + " not configured, redirect to index.html")
+	if !util.SysConfigured() {
+		glog.Warningln("URL: " + r.URL.Path + " not configured, redirect to index.html")
 		http.Redirect(w, r, "/index", http.StatusFound)
 	} else {
 		fileName := r.Form["fileName"][0]
 		targetFile := filehandler.AllFiles.Get(fileName).(*filehandler.File)
-		glog.Infoln("[DOWNLOAD]开始收集数据分块 FullName is :" + fileName)
+		glog.Infoln("[/DOWNLOAD]开始收集数据分块 FullName is :" + fileName)
 		targetFile.CollectFiles()
 		glog.Infoln("[DOWNLOAD]收集数据分块完成")
-		if sysTool.SysConfig.Status == false {
+		if util.SysConfig.Status == false {
 			//TODO: 降级读
-			// var recFinish = true
-			// for index := range nodeHandler.LostNodes {
-			// 	var result bool
-			// 	glog.Infof("需要检测节点 ID : %d", nodeHandler.LostNodes[index])
-			// 	result = nodeHandler.safeMap[nodeHandler.LostNodes[index]].Old_DetectNode(*targetFile)
-			// 	recFinish = recFinish && result
-			// }
-			// for !recFinish {
-			// 	recFinish = true
-			// 	for index := range nodeHandler.LostNodes {
-			// 		var result bool
-			// 		glog.Infof("需要检测节点 ID : %d", nodeHandler.LostNodes[index])
-			// 		result = nodeHandler.safeMap[nodeHandler.LostNodes[index]].Old_DetectNode(*targetFile)
-			// 		recFinish = recFinish && result
-			// 	}
-			// }
+
 		}
 		glog.Infoln("[DOWNLOAD]开始将数据分块写入副本")
 		targetFile.GetFile("temp/")
@@ -223,15 +200,12 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteHandler(w http.ResponseWriter, r *http.Request) {
-	glog.Infoln("[DELETE] " + r.URL.Path)
 	r.ParseForm()
-	glog.Infoln("[DELETE] method: ", r.Method)
-
-	if !sysTool.SysConfigured() {
-		glog.Infoln("URL: " + r.URL.Path + " not configured, redirect to index.html")
+	if !util.SysConfigured() {
+		glog.Warningln("URL: " + r.URL.Path + " not configured, redirect to index.html")
 		http.Redirect(w, r, "/index", http.StatusFound)
 	} else {
-		glog.Infoln("[Form-File_Name]" + r.Form["fileName"][0])
+		glog.Infoln("[DELETE]" + r.Form["fileName"][0])
 		fileName := r.Form["fileName"][0]
 		targetFile := filehandler.AllFiles.Get(fileName).(*filehandler.File)
 		targetFile.DeleteSlices()
@@ -279,53 +253,40 @@ func greetHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 400)
 		return
 	}
-
 	if node.ID != 0 {
 		existed = true
 	}
-
-	//glog.Infoln("Existence Status : " + strconv.FormatBool(existed))
-
 	if existed {
-		//glog.Infof("Node [%d] already Existed", node.ID)
 		var volume = node.Volume
 		node = nodehandler.AllNodes.Get(node.ID).(nodehandler.Node)
 		node.Volume = volume
-		//node.Status = true
-		//glog.Infof("Before Time : %d", node.LastTime)
 		node.LastTime = time.Now().UnixNano() / 1000000
 		nodehandler.AllNodes.Set(node.ID, node)
-		//glog.Infof("Refresh Time : %d", sysTool.safeMap[node.ID].LastTime)
 	} else {
 		nodehandler.IDCounter.PlusSafeID()
 		node.ID = nodehandler.IDCounter.GetSafeID()
-
 		glog.Infof("Hello %d\n", node.ID)
-
 		nodehandler.EmptyNodes = append(nodehandler.EmptyNodes, node.ID)
 		node.LastTime = time.Now().UnixNano() / 1000000
-
 		nodehandler.AllNodes.Set(node.ID, node)
-
 		if !node.AppendNode() {
 			glog.Infof("Still in Empty Slice %+v", node)
 		} else {
-			glog.Infof("[Removed from empty]%+v", node)
+			glog.Infof("[Removed from empty] %+v", node)
 		}
 	}
-
 	w.Header().Set("ID", strconv.Itoa((int)(node.ID)))
 	w.WriteHeader(http.StatusOK)
 }
 
 func restoreHandler(w http.ResponseWriter, r *http.Request) {
-	if !sysTool.SysConfigured() {
-		glog.Infoln("URL: " + r.URL.Path + " not configured, redirect to index.html")
+	if !util.SysConfigured() {
+		glog.Warningln("URL: " + r.URL.Path + " not configured, redirect to index.html")
 		http.Redirect(w, r, "/index", http.StatusFound)
-	} else if sysTool.SysConfig.Status {
+	} else if util.SysConfig.Status {
 		glog.Infoln("系统正常运行，无需修复.")
 		http.Redirect(w, r, "/node", http.StatusFound)
-	} else if len(nodehandler.LostNodes) > sysTool.SysConfig.FaultNum {
+	} else if len(nodehandler.LostNodes) > util.SysConfig.FaultNum {
 		glog.Warningf("丢失节点数 : %d", len(nodehandler.LostNodes))
 		t, err := template.ParseFiles("view/info.html")
 		data := struct {
@@ -338,6 +299,7 @@ func restoreHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		t.Execute(w, data)
 	} else if len(nodehandler.EmptyNodes) < len(nodehandler.LostNodes) {
+		glog.Warningf("丢失节点数 : %d 大于最大容错数", len(nodehandler.LostNodes))
 		t, err := template.ParseFiles("view/info.html")
 		data := struct {
 			info string
@@ -359,15 +321,16 @@ func restoreHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		glog.Infoln("将空节点转换至丢失节点完成")
 
-		//TODO: 开始解码恢复 循环所有文件，为每个文件开一个线程用于恢复
+		glog.Infoln("开始解码恢复 循环所有文件，为每个文件开一个线程用于恢复")
 		var waitGroup sync.WaitGroup
 		allFileListTemp := filehandler.AllFiles.Items()
 		for _, value := range allFileListTemp {
-			converted, _ := value.(filehandler.File)
+			converted, _ := value.(*filehandler.File)
 			waitGroup.Add(1)
 			go func() {
 				defer waitGroup.Done()
 				//执行对单个文件的恢复
+				glog.Infof("[解码恢复] 文件名 %s, 文件大小 %d",converted.FileFullName,converted.Size)
 				converted.LostHandle()
 			}()
 		}
@@ -390,7 +353,7 @@ func restoreHandler(w http.ResponseWriter, r *http.Request) {
 		//清空失效节点列表
 		nodehandler.LostNodes = []uint{}
 		//系统状态设为正常
-		sysTool.SysConfig.Status = true
+		util.SysConfig.Status = true
 		//前端显示信息提示页面
 		t, err := template.ParseFiles("view/info.html")
 		data := struct {

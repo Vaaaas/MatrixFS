@@ -1,4 +1,4 @@
-package sysTool
+package util
 
 import (
 	"os"
@@ -14,7 +14,6 @@ var SysConfig struct {
 	SliceNum int
 	DataNum  int
 	RddtNum  int
-
 	Status bool
 }
 
@@ -37,7 +36,6 @@ func GetIndexInAll(limit int, predicate func(i int) bool) int {
 func InitConfig(fault, row int) {
 	if fault <= 1 || row <= 1 {
 		glog.Error("行数和容错数都应大于1")
-		//panic("行数和容错数都应大于1")
 	} else {
 		SysConfig.FaultNum = fault
 		SysConfig.RowNum = row
@@ -51,9 +49,7 @@ func InitConfig(fault, row int) {
 		}
 
 		SysConfig.Status = true
-
 		glog.Infof("系统参数配置完成：容错数 %d , 行数 %d , 数据分块数 %d , 数据列数 %d , 冗余列数 %d", SysConfig.FaultNum, SysConfig.RowNum, SysConfig.SliceNum, SysConfig.DataNum, SysConfig.RddtNum)
-
 		err := initTempFolders(fault, SysConfig.DataNum, row)
 		if err != nil {
 			glog.Error(err)
@@ -75,7 +71,6 @@ func initTempFolders(fault, dataNum, row int) error {
 	} else {
 		initRddtFolders((fault * dataNum) / row)
 	}
-
 	return nil
 }
 
