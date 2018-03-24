@@ -112,6 +112,7 @@ func (file *File) LostHandle() bool {
 				postOneFile(*file, false, nodehandler.RddtNodes[index], k, posY, index)
 			}
 		}
+		file.DeleteAllTempFiles()
 	}
 	glog.Infof("文件恢复完成 : %s", file.FileFullName)
 	return true

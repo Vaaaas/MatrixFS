@@ -120,7 +120,7 @@ func (file File) deleteTempDataFiles() error {
 			for j := 0; j < util.SysConfig.RowNum; j++ {
 				filePath := structSliceFileName("./temp", true, i, file.FileFullName, i, j)
 				if !fileExistedInCenter(filePath) {
-					glog.Warningf("[File to Delete NOT EXIST] temp/Data.%d/%s.%d%d ", i, file.FileFullName, i, j)
+					break
 				} else {
 					err := os.Remove(filePath)
 					if err != nil {

@@ -36,6 +36,9 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/favicon.ico" {
 			glog.Infoln("[/favicon.ico] " + r.URL.Path)
 			http.ServeFile(w, r, "favicon.ico")
+		}else if r.URL.Path == "/pic/gopher_head.png"{
+			glog.Infoln("[/favicon.ico] " + r.URL.Path)
+			http.ServeFile(w, r, "pic/gopher_head.png")
 		} else {
 			glog.Errorln("[/] " + r.URL.Path)
 			t, err := template.ParseFiles("view/404.html")

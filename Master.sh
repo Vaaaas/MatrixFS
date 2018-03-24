@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+mkdir -p $HOME/MatrixFS/master/css/ && cp -rf $GOPATH/src/github.com/Vaaaas/MatrixFS/matrix/css $HOME/MatrixFS/master/;
 mkdir -p $HOME/MatrixFS/master/js/ && cp -rf $GOPATH/src/github.com/Vaaaas/MatrixFS/matrix/js $HOME/MatrixFS/master/;
 mkdir -p $HOME/MatrixFS/master/pic/ && cp -rf $GOPATH/src/github.com/Vaaaas/MatrixFS/matrix/pic $HOME/MatrixFS/master/;
 mkdir -p $HOME/MatrixFS/master/view/ && cp -rf $GOPATH/src/github.com/Vaaaas/MatrixFS/matrix/view $HOME/MatrixFS/master/;
