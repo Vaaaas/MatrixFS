@@ -187,10 +187,6 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 		glog.Infoln("[/DOWNLOAD]开始收集数据分块 FullName is :" + fileName)
 		targetFile.CollectFiles()
 		glog.Infoln("[DOWNLOAD]收集数据分块完成")
-		if util.SysConfig.Status == false {
-			//TODO: 降级读
-
-		}
 		glog.Infoln("[DOWNLOAD]开始将数据分块写入副本")
 		targetFile.GetFile("temp/")
 		glog.Infoln("[DOWNLOAD]数据分块写入副本完成")

@@ -156,7 +156,7 @@ func (file File) deleteTempRddtFiles() error {
 			for fileCounter < util.SysConfig.DataNum {
 				filePath := structSliceFileName("./temp", false, nodeCounter, file.FileFullName, k, fileCounter)
 				if !fileExistedInCenter(filePath) {
-					glog.Warningf("[File to Delete NOT EXIST] temp/RDDT.%d/%s.%d%d ", nodeCounter, file.FileFullName, k, fileCounter)
+					//glog.Warningf("[File to Delete NOT EXIST] temp/RDDT.%d/%s.%d%d ", nodeCounter, file.FileFullName, k, fileCounter)
 				} else {
 					err := os.Remove(filePath)
 					if err != nil {

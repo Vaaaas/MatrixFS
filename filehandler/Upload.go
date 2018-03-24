@@ -329,7 +329,6 @@ func (file File) GetFile(targetFolder string) error {
 		panic(err)
 	}
 	defer target.Close()
-
 	if file.Size <= 1000 {
 		//直接读取（0，0）处的副本
 		buffer := make([]byte, file.sliceSize)

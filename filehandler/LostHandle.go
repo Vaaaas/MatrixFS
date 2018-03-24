@@ -19,43 +19,38 @@ func (file *File) LostHandle() bool {
 	if file.Size <= 1000 {
 		//TODO: <= 1000 恢复文件的方式不对
 		glog.Warningf("文件大小 %d 小于1000",file.Size)
-		//var dataNodePos int
-		//for i := 0; i < len(nodehandler.DataNodes); i++ {
-		//	if nodehandler.AllNodes.Get(nodehandler.DataNodes[i]).(nodehandler.Node).Status {
-		//		dataNodePos = i
-		//		getOneFile(*file, true, nodehandler.DataNodes[i], i, 0, 0)
-		//	}
-		//}
-		//targetFile := structSliceFileName("./temp", true, dataNodePos, file.FileFullName, dataNodePos, 0)
-		////打开要生成的文件
-		//outFile, err := os.OpenFile(targetFile, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, os.ModePerm)
-		//if err != nil {
-		//	glog.Error("新建要生成的副本文件失败 " + strconv.Itoa(dataNodePos) + "/" + file.FileFullName + "." + strconv.Itoa(dataNodePos) + strconv.Itoa(0))
-		//	panic(err)
-		//}
-		//defer outFile.Close()
-		//for i := 0; i < len(nodehandler.LostNodes); i++ {
-		//	if nodehandler.IsDataNode(nodehandler.LostNodes[i]) {
-		//		index := util.GetIndexInAll(len(nodehandler.DataNodes), func(finder int) bool {
-		//			return nodehandler.DataNodes[finder] == nodehandler.LostNodes[i]
-		//		})
-		//		source:=structSliceFileName()
-		//		sourceFile, err := os.Open(source)
-		//		if err != nil {
-		//			glog.Error("备份原始文件副本时打开源文件失败")
-		//			panic(err)
-		//		}
-		//		defer sourceFile.Close()
-		//		file.copyFile(true, index, sourceFile)
-		//		postOneFile(*file, true, nodehandler.DataNodes[index], index, 0, 0)
-		//	} else {
-		//		index := util.GetIndexInAll(len(nodehandler.RddtNodes), func(finder int) bool {
-		//			return nodehandler.RddtNodes[finder] == nodehandler.LostNodes[i]
-		//		})
-		//		file.copyFile(false, index, sourceFile)
-		//		postOneFile(*file, false, nodehandler.RddtNodes[index], index, 0, 0)
-		//	}
-		//}
+		var dataNodePos int
+		for i := 0; i < len(nodehandler.DataNodes); i++ {
+			if nodehandler.AllNodes.Get(nodehandler.DataNodes[i]).(nodehandler.Node).Status {
+				dataNodePos = i
+				getOneFile(*file, true, nodehandler.DataNodes[i], i, 0, 0)
+				break
+			}
+		}
+		targetFile := structSliceFileName("./temp", true, dataNodePos, file.FileFullName, dataNodePos, 0)
+		//打开得到的副本
+		outFile, err := os.OpenFile(targetFile, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, os.ModePerm)
+		if err != nil {
+			glog.Error("新建要生成的副本文件失败 " + strconv.Itoa(dataNodePos) + "/" + file.FileFullName + "." + strconv.Itoa(dataNodePos) + strconv.Itoa(0))
+			panic(err)
+		}
+		defer outFile.Close()
+		for i := 0; i < len(nodehandler.LostNodes); i++ {
+			if nodehandler.IsDataNode(nodehandler.LostNodes[i]) {
+				index := util.GetIndexInAll(len(nodehandler.DataNodes), func(finder int) bool {
+					return nodehandler.DataNodes[finder] == nodehandler.LostNodes[i]
+				})
+
+				file.copyFile(true, index, outFile)
+				postOneFile(*file, true, nodehandler.DataNodes[index], index, 0, 0)
+			} else {
+				index := util.GetIndexInAll(len(nodehandler.RddtNodes), func(finder int) bool {
+					return nodehandler.RddtNodes[finder] == nodehandler.LostNodes[i]
+				})
+				file.copyFile(false, index, outFile)
+				postOneFile(*file, false, nodehandler.RddtNodes[index], index, 0, 0)
+			}
+		}
 	} else {
 		var dataNodes []uint
 		var rddtNodes []uint
@@ -112,8 +107,8 @@ func (file *File) LostHandle() bool {
 				postOneFile(*file, false, nodehandler.RddtNodes[index], k, posY, index)
 			}
 		}
-		file.DeleteAllTempFiles()
 	}
+	file.DeleteAllTempFiles()
 	glog.Infof("文件恢复完成 : %s", file.FileFullName)
 	return true
 }

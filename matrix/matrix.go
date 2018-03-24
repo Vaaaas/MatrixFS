@@ -45,8 +45,8 @@ func main() {
 	http.HandleFunc("/greet", greetHandler)
 	http.HandleFunc("/upload", uploadHandler)
 	http.HandleFunc("/delete", deleteHandler)
-	http.HandleFunc("/restore", restoreHandler)
 	http.HandleFunc("/download", downloadHandler)
+	http.HandleFunc("/restore", restoreHandler)
 
 	//文件服务
 	http.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.Dir("./js/"))))
