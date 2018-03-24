@@ -101,7 +101,6 @@ func EmptyNodeToLostNode(empID, lostID uint) {
 	node := AllNodes.Get(empID).(Node)
 	//生成url
 	url := "http://" + node.Address.String() + ":" + strconv.Itoa(node.Port) + "/resetid"
-	glog.Info("[EmptyNodeToLostNode] URL " + url)
 	//向空节点发送重设ID请求
 	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
@@ -120,10 +119,8 @@ func EmptyNodeToLostNode(empID, lostID uint) {
 		glog.Errorln(err)
 		panic(err)
 	}
-	glog.Infof("空节点 ID : %d, 丢失节点ID : %d", empID, lostID)
 	//转化完成，得到新节点信息
 	node.ID = lostID
 	node.Status = false
 	AllNodes.Set(lostID, node)
-	glog.Infof("用于恢复的节点ID : %d", node.ID)
 }

@@ -277,6 +277,7 @@ func postOneFile(file File, isData bool, nodeID uint, posiX, posiY, nodeCounter 
 	} else {
 		filePath = structSliceFileName("./temp", false, nodeCounter, file.FileFullName, posiX, posiY)
 	}
+	glog.Infof("[发送文件至节点] %s",filePath)
 	//编写请求body
 	fileWriter, err := bodyWriter.CreateFormFile("uploadfile", filePath)
 	if err != nil {
@@ -301,6 +302,7 @@ func postOneFile(file File, isData bool, nodeID uint, posiX, posiY, nodeCounter 
 	//设定url
 	node := nodehandler.AllNodes.Get(nodeID).(nodehandler.Node)
 	url := "http://" + node.Address.String() + ":" + strconv.Itoa(node.Port) + "/upload"
+	glog.Warningf("[发送文件至节点] source : %s  URL : %s",filePath,url)
 	resp, err := http.Post(url, contentType, bodyBuf)
 	if err != nil {
 		glog.Errorln(err)
@@ -309,6 +311,9 @@ func postOneFile(file File, isData bool, nodeID uint, posiX, posiY, nodeCounter 
 	defer resp.Body.Close()
 	//获取response
 	_, err = ioutil.ReadAll(resp.Body)
+	if resp.StatusCode != 200{
+		glog.Errorf("[PostOneFile] ERROR Status Code : %d",resp.StatusCode)
+	}
 	if err != nil {
 		glog.Errorln(err)
 		panic(err)

@@ -311,7 +311,6 @@ func restoreHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		t.Execute(w, data)
 	} else {
-		//以前：将所有文件收集至中心节点
 		glog.Infoln("开始将空节点转换至丢失节点")
 		//处理丢失节点，将空节点转化为丢失节点，为空节点设置新ID
 		for i := 0; i < len(nodehandler.LostNodes); i++ {
@@ -347,7 +346,7 @@ func restoreHandler(w http.ResponseWriter, r *http.Request) {
 
 		//删除已转化的空节点
 		for i := 0; i < len(nodehandler.LostNodes); i++ {
-			glog.Warningf("[Delete removed empty nodes] i = %d",i)
+			//glog.Warningf("[Delete removed empty nodes] i = %d",i)
 			nodehandler.AllNodes.Delete(nodehandler.EmptyNodes[0])
 			if len(nodehandler.EmptyNodes)>0{
 				nodehandler.EmptyNodes = append(nodehandler.EmptyNodes[:0], nodehandler.EmptyNodes[1:]...)
