@@ -7,9 +7,10 @@ import (
 	"time"
 
 	"github.com/Vaaaas/MatrixFS/filehandler"
-	"github.com/Vaaaas/MatrixFS/glog"
 	"github.com/Vaaaas/MatrixFS/nodehandler"
+	"github.com/Vaaaas/MatrixFS/server"
 	"github.com/Vaaaas/MatrixFS/util"
+	"github.com/golang/glog"
 )
 
 func main() {
@@ -36,17 +37,17 @@ func main() {
 	filehandler.AllFiles = util.NewSafeMap()
 
 	//页面处理方法
-	http.HandleFunc("/", rootHandler)
-	http.HandleFunc("/index", indexPageHandler)
-	http.HandleFunc("/file", filePageHandler)
-	http.HandleFunc("/node", nodeEnterHandler)
+	http.HandleFunc("/", server.RootHandler)
+	http.HandleFunc("/index", server.IndexPageHandler)
+	http.HandleFunc("/file", server.FilePageHandler)
+	http.HandleFunc("/node", server.NodeEnterHandler)
 
 	//功能处理方法
-	http.HandleFunc("/greet", greetHandler)
-	http.HandleFunc("/upload", uploadHandler)
-	http.HandleFunc("/delete", deleteHandler)
-	http.HandleFunc("/download", downloadHandler)
-	http.HandleFunc("/restore", restoreHandler)
+	http.HandleFunc("/greet", server.GreetHandler)
+	http.HandleFunc("/upload", server.UploadHandler)
+	http.HandleFunc("/delete", server.DeleteHandler)
+	http.HandleFunc("/download", server.DownloadHandler)
+	http.HandleFunc("/restore", server.RestoreHandler)
 
 	//文件服务
 	http.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.Dir("./js/"))))

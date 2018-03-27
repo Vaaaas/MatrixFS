@@ -14,8 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Vaaaas/MatrixFS/glog"
-	"github.com/Vaaaas/MatrixFS/util"
+	"github.com/golang/glog"
 )
 
 //Node 节点结构体
@@ -73,7 +72,7 @@ func main() {
 	}
 	dir = strings.Replace(dir, "\\", "/", -1)
 	//获取存储节点本地存储路径的可用空间
-	diskUsage := util.NewDiskUsage(dir)
+	diskUsage := NewDiskUsage(dir)
 	volume := (float64)(diskUsage.Available()) / (float64)(1024*1024*1024)
 	glog.Infof("Node start here : %d", NodeAdd.Port)
 	glog.Infof("Store Path: %s, Free space: %f", StorePath, volume)
@@ -163,7 +162,7 @@ func connectMaster() error {
 		log.Fatal(err)
 	}
 	dir = strings.Replace(dir, "\\", "/", -1)
-	diskUsage := util.NewDiskUsage(dir)
+	diskUsage := NewDiskUsage(dir)
 	volume := (float64)(diskUsage.Available()) / (float64)(1024*1024*1024)
 	nodeInfo.Volume = volume
 	b := new(bytes.Buffer)

@@ -4,7 +4,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/Vaaaas/MatrixFS/glog"
+	"github.com/golang/glog"
 )
 
 //SysConfig 首字母大写为导出成员，可被包外引用

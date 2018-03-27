@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"encoding/json"
@@ -12,12 +12,12 @@ import (
 	"sync"
 
 	"github.com/Vaaaas/MatrixFS/filehandler"
-	"github.com/Vaaaas/MatrixFS/glog"
 	"github.com/Vaaaas/MatrixFS/nodehandler"
 	"github.com/Vaaaas/MatrixFS/util"
+	"github.com/golang/glog"
 )
 
-func rootHandler(w http.ResponseWriter, r *http.Request) {
+func RootHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/" {
 		if !util.SysConfigured() {
 			glog.Warningln("URL: " + r.URL.Path + " not configured, redirect to index.html")
@@ -50,7 +50,7 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func indexPageHandler(w http.ResponseWriter, r *http.Request) {
+func IndexPageHandler(w http.ResponseWriter, r *http.Request) {
 	if util.SysConfigured() {
 		if !nodehandler.NodeConfigured() {
 			glog.Warningln("URL: " + r.URL.Path + " Node not configured, redirect to node.html")
@@ -68,7 +68,7 @@ func indexPageHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func nodeEnterHandler(w http.ResponseWriter, r *http.Request) {
+func NodeEnterHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	if r.Method == "GET" {
 		if !util.SysConfigured() {
@@ -114,7 +114,7 @@ func nodeEnterHandler(w http.ResponseWriter, r *http.Request) {
 	t.Execute(w, data)
 }
 
-func filePageHandler(w http.ResponseWriter, r *http.Request) {
+func FilePageHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	if !util.SysConfigured() {
 		glog.Warningln("URL: " + r.URL.Path + "not configured, redirect to index.html")
@@ -134,7 +134,7 @@ func filePageHandler(w http.ResponseWriter, r *http.Request) {
 	t.Execute(w, resultList)
 }
 
-func uploadHandler(w http.ResponseWriter, r *http.Request) {
+func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		glog.Warningln("[/UPLOAD] GET " + r.URL.Path)
 		t, err := template.ParseFiles("view/404.html")
@@ -176,7 +176,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func downloadHandler(w http.ResponseWriter, r *http.Request) {
+func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	if !util.SysConfigured() {
 		glog.Warningln("URL: " + r.URL.Path + " not configured, redirect to index.html")
@@ -198,7 +198,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func deleteHandler(w http.ResponseWriter, r *http.Request) {
+func DeleteHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	if !util.SysConfigured() {
 		glog.Warningln("URL: " + r.URL.Path + " not configured, redirect to index.html")
@@ -216,30 +216,7 @@ func deleteHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func fileHandle(source string) *filehandler.File {
-	glog.Infoln("Start FileHandler")
-	var file01 filehandler.File
-	//分析原始文件属性
-	file01.Init(source)
-	//分割文件名
-	name, ext := file01.SliceFileName()
-	glog.Infof("File %s.%s init finished", name, ext)
-	//生成数据分块阵列
-	glog.Infoln("[处理上传文件]开始生成数据阵列")
-	file01.InitDataFiles()
-	glog.Infoln("[处理上传文件]生成数据阵列完成")
-	//编码生成校验分块阵列
-	glog.Infoln("[处理上传文件]开始生成校验阵列")
-	file01.InitRddtFiles()
-	glog.Infoln("[处理上传文件]生成校验阵列完成")
-	//将分块文件发送至存储节点
-	glog.Infoln("[处理上传文件]开始发送分块阵列至节点")
-	file01.SendToNode()
-	glog.Infoln("[处理上传文件]发送分块阵列至节点完成")
-	return &file01
-}
-
-func greetHandler(w http.ResponseWriter, r *http.Request) {
+func GreetHandler(w http.ResponseWriter, r *http.Request) {
 	//在Master中建立空Node变量
 	var node nodehandler.Node
 	var existed = false
@@ -278,7 +255,7 @@ func greetHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func restoreHandler(w http.ResponseWriter, r *http.Request) {
+func RestoreHandler(w http.ResponseWriter, r *http.Request) {
 	if !util.SysConfigured() {
 		glog.Warningln("URL: " + r.URL.Path + " not configured, redirect to index.html")
 		http.Redirect(w, r, "/index", http.StatusFound)
@@ -367,4 +344,27 @@ func restoreHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		t.Execute(w, data)
 	}
+}
+
+func fileHandle(source string) *filehandler.File {
+	glog.Infoln("Start FileHandler")
+	var file01 filehandler.File
+	//分析原始文件属性
+	file01.Init(source)
+	//分割文件名
+	name, ext := file01.SliceFileName()
+	glog.Infof("File %s.%s init finished", name, ext)
+	//生成数据分块阵列
+	glog.Infoln("[处理上传文件]开始生成数据阵列")
+	file01.InitDataFiles()
+	glog.Infoln("[处理上传文件]生成数据阵列完成")
+	//编码生成校验分块阵列
+	glog.Infoln("[处理上传文件]开始生成校验阵列")
+	file01.InitRddtFiles()
+	glog.Infoln("[处理上传文件]生成校验阵列完成")
+	//将分块文件发送至存储节点
+	glog.Infoln("[处理上传文件]开始发送分块阵列至节点")
+	file01.SendToNode()
+	glog.Infoln("[处理上传文件]发送分块阵列至节点完成")
+	return &file01
 }

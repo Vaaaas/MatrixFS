@@ -3,7 +3,7 @@ package util
 import (
 	"testing"
 
-	"github.com/Vaaaas/MatrixFS/glog"
+	"github.com/golang/glog"
 )
 
 func TestInitConfig(t *testing.T) {

@@ -10,9 +10,9 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/Vaaaas/MatrixFS/glog"
 	"github.com/Vaaaas/MatrixFS/nodehandler"
 	"github.com/Vaaaas/MatrixFS/util"
+	"github.com/golang/glog"
 )
 
 //复制文件，可用于生成数据副本和校验副本
