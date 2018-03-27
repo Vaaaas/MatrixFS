@@ -7,16 +7,16 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/Vaaaas/MatrixFS/glog"
 	"github.com/Vaaaas/MatrixFS/nodehandler"
 	"github.com/Vaaaas/MatrixFS/util"
-	"github.com/golang/glog"
 )
 
-//DeleteSlices 处理用户删除文件的请求
+// DeleteSlices 处理用户删除文件的请求
 func (file File) DeleteSlices() {
 	for i := 0; i < util.SysConfig.DataNum; i++ {
 		if file.Size <= 1000 {
-			//只需删除第一个
+			// 只需删除第一个
 			deleteOneFile(file, true, nodehandler.DataNodes[i], i, 0)
 		} else {
 			for j := 0; j < util.SysConfig.RowNum; j++ {
@@ -27,7 +27,7 @@ func (file File) DeleteSlices() {
 
 	if file.Size <= 1000 {
 		for i := 0; i < util.SysConfig.RddtNum; i++ {
-			//只需删除第一个
+			// 只需删除第一个
 			deleteOneFile(file, false, nodehandler.RddtNodes[i], i, 0)
 		}
 	} else {
@@ -37,7 +37,7 @@ func (file File) DeleteSlices() {
 		for fCounter := 0; fCounter < util.SysConfig.FaultNum; fCounter++ {
 			k := (int)((fCounter + 2) / 2 * (int)(math.Pow(-1, (float64)(fCounter+2))))
 			for fileCounter < util.SysConfig.DataNum {
-				//执行删除
+				// 执行删除
 				deleteOneFile(file, false, nodehandler.RddtNodes[nodeCounter], k, fileCounter)
 				fileCounter++
 				rddtFileCounter++
@@ -66,13 +66,13 @@ func deleteOneFile(file File, isData bool, nodeID uint, posiX, posiY int) {
 	//设定请求发送url
 	node := nodehandler.AllNodes.Get(nodeID).(nodehandler.Node)
 	url := "http://" + node.Address.String() + ":" + strconv.Itoa(node.Port) + "/delete"
-	//设定发送至存储节点的删除请求
+	// 设定发送至存储节点的删除请求
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
 		glog.Errorln(err)
 		panic(err)
 	}
-	//设定请求header
+	// 设定请求header
 	req.Header.Set("fileName", fileName)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -87,11 +87,11 @@ func deleteOneFile(file File, isData bool, nodeID uint, posiX, posiY int) {
 	}
 }
 
-//DeleteAllTempFiles 删除中心节点中某个文件的全部临时文件
+// DeleteAllTempFiles 删除中心节点中某个文件的全部临时文件
 func (file File) DeleteAllTempFiles() error {
 	file.deleteTempDataFiles()
 	file.deleteTempRddtFiles()
-	//删除原始文件副本
+	// 删除原始文件副本
 	if !fileExistedInCenter("temp/" + file.FileFullName) {
 		glog.Warningf("[File to Delete NOT EXIST] temp/" + file.FileFullName)
 	} else {
@@ -106,7 +106,7 @@ func (file File) DeleteAllTempFiles() error {
 func (file File) deleteTempDataFiles() error {
 	for i := 0; i < util.SysConfig.DataNum; i++ {
 		if file.Size <= 1000 {
-			//删除副本
+			// 删除副本
 			filePath := structSliceFileName("./temp", true, i, file.FileFullName, i, 0)
 			if !fileExistedInCenter(filePath) {
 				glog.Warningf("[File to Delete NOT EXIST] temp/Data.%d/%s.%d%d ", i, file.FileFullName, i, 0)

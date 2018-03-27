@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/Vaaaas/MatrixFS/filehandler"
+	"github.com/Vaaaas/MatrixFS/glog"
 	"github.com/Vaaaas/MatrixFS/nodehandler"
 	"github.com/Vaaaas/MatrixFS/util"
-	"github.com/golang/glog"
 )
 
 func main() {

@@ -1,8 +1,11 @@
 // +build !windows
+
+//Package util 包含一些通用的工具函数
 package util
 
 import "syscall"
 
+//DiskUsage 磁盘使用情况结构体
 type DiskUsage struct {
 	stat *syscall.Statfs_t
 }
@@ -15,7 +18,6 @@ func NewDiskUsage(volumePath string) *DiskUsage {
 }
 
 //Available 磁盘对用户的可用空间
-func (this *DiskUsage) Available() uint64 {
-	return this.stat.Bavail * uint64(this.stat.Bsize)
+func (du *DiskUsage) Available() uint64 {
+	return du.stat.Bavail * uint64(du.stat.Bsize)
 }
-

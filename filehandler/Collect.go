@@ -10,7 +10,7 @@ import (
 	"github.com/Vaaaas/MatrixFS/util"
 )
 
-//CollectFiles 从存储节点收集全部分块文件到中心节点
+// CollectFiles 从存储节点收集全部分块文件到中心节点
 func (file File) CollectFiles() {
 	if !util.SysConfig.Status && file.Size > 1000 {
 		var dataNodes []uint
@@ -24,12 +24,12 @@ func (file File) CollectFiles() {
 			}
 		}
 		if len(dataNodes) != 0 {
-			//有数据节点丢失
+			// 有数据节点丢失
 			var recFinish = true
 			for row := 0; row < util.SysConfig.RowNum/2+1; row++ {
 				var rowResult = true
 				for col := 0; col < len(dataNodes); col++ {
-					//检测并恢复单个文件
+					// 检测并恢复单个文件
 					node := nodehandler.AllNodes.Get(dataNodes[col]).(nodehandler.Node)
 					colResult := file.detectDataFile(node, row)
 					rowResult = rowResult && colResult
@@ -41,7 +41,7 @@ func (file File) CollectFiles() {
 				for row := 0; row < util.SysConfig.RowNum/2+1; row++ {
 					var rowResult = true
 					for col := 0; col < len(dataNodes); col++ {
-						//检测并恢复单个文件
+						// 检测并恢复单个文件
 						node := nodehandler.AllNodes.Get(dataNodes[col]).(nodehandler.Node)
 						colResult := file.detectDataFile(node, row)
 						rowResult = rowResult && colResult
@@ -58,7 +58,7 @@ func (file File) CollectFiles() {
 			for j := 0; j < util.SysConfig.RowNum; j++ {
 				node := nodehandler.AllNodes.Get(nodehandler.DataNodes[i]).(nodehandler.Node)
 				filePath := structSliceFileName("./temp", true, i, file.FileFullName, i, j)
-				if node.Status == true && !fileExistedInCenter(filePath){
+				if node.Status == true && !fileExistedInCenter(filePath) {
 					getOneFile(file, true, nodehandler.DataNodes[i], i, j, 0)
 				}
 			}

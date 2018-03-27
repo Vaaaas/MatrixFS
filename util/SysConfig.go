@@ -4,7 +4,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/golang/glog"
+	"github.com/Vaaaas/MatrixFS/glog"
 )
 
 //SysConfig 首字母大写为导出成员，可被包外引用
@@ -14,7 +14,7 @@ var SysConfig struct {
 	SliceNum int
 	DataNum  int
 	RddtNum  int
-	Status bool
+	Status   bool
 }
 
 //SysConfigured 判断是否已经配置最大容错数和阵列行数

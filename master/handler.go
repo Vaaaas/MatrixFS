@@ -12,9 +12,9 @@ import (
 	"sync"
 
 	"github.com/Vaaaas/MatrixFS/filehandler"
+	"github.com/Vaaaas/MatrixFS/glog"
 	"github.com/Vaaaas/MatrixFS/nodehandler"
 	"github.com/Vaaaas/MatrixFS/util"
-	"github.com/golang/glog"
 )
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {
@@ -36,9 +36,9 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/favicon.ico" {
 			glog.Infoln("[/favicon.ico] " + r.URL.Path)
 			http.ServeFile(w, r, "favicon.ico")
-		}else if r.URL.Path == "/pic/gopher_head.png"{
+		} else if r.URL.Path == "/image/gopher_head.png" {
 			glog.Infoln("[/favicon.ico] " + r.URL.Path)
-			http.ServeFile(w, r, "pic/gopher_head.png")
+			http.ServeFile(w, r, "image/gopher_head.png")
 		} else {
 			glog.Errorln("[/] " + r.URL.Path)
 			t, err := template.ParseFiles("view/404.html")
@@ -328,7 +328,7 @@ func restoreHandler(w http.ResponseWriter, r *http.Request) {
 			go func() {
 				defer waitGroup.Done()
 				//执行对单个文件的恢复
-				glog.Infof("[解码恢复] 文件名 %s, 文件大小 %d",converted.FileFullName,converted.Size)
+				glog.Infof("[解码恢复] 文件名 %s, 文件大小 %d", converted.FileFullName, converted.Size)
 				converted.LostHandle()
 			}()
 		}
@@ -347,7 +347,7 @@ func restoreHandler(w http.ResponseWriter, r *http.Request) {
 		for i := 0; i < len(nodehandler.LostNodes); i++ {
 			//glog.Warningf("[Delete removed empty nodes] i = %d",i)
 			nodehandler.AllNodes.Delete(nodehandler.EmptyNodes[0])
-			if len(nodehandler.EmptyNodes)>0{
+			if len(nodehandler.EmptyNodes) > 0 {
 				nodehandler.EmptyNodes = append(nodehandler.EmptyNodes[:0], nodehandler.EmptyNodes[1:]...)
 			}
 		}

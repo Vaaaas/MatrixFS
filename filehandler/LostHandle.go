@@ -6,9 +6,9 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/Vaaaas/MatrixFS/glog"
 	"github.com/Vaaaas/MatrixFS/nodehandler"
 	"github.com/Vaaaas/MatrixFS/util"
-	"github.com/golang/glog"
 )
 
 //LostHandle 执行解码恢复功能
@@ -17,8 +17,7 @@ func (file *File) LostHandle() bool {
 	glog.Infof("开始恢复文件 : %s", file.FileFullName)
 
 	if file.Size <= 1000 {
-		//TODO: <= 1000 恢复文件的方式不对
-		glog.Warningf("文件大小 %d 小于1000",file.Size)
+		glog.Warningf("文件大小 %d 小于1000", file.Size)
 		var dataNodePos int
 		for i := 0; i < len(nodehandler.DataNodes); i++ {
 			if nodehandler.AllNodes.Get(nodehandler.DataNodes[i]).(nodehandler.Node).Status {
@@ -102,7 +101,7 @@ func (file *File) LostHandle() bool {
 				faultCount := (index*util.SysConfig.RowNum + rddtRow) / util.SysConfig.DataNum
 				k := (int)((faultCount + 2) / 2 * (int)(math.Pow(-1, (float64)(faultCount+2))))
 				//glog.Warningf("posY = %d, index = %d, k = %d",posY,index,k)
-				file.detectKLine(posY, 0, index, k,true)
+				file.detectKLine(posY, 0, index, k, true)
 				file.initOneRddtFile(posY, k, index)
 				postOneFile(*file, false, nodehandler.RddtNodes[index], k, posY, index)
 			}
@@ -118,7 +117,7 @@ func (file File) detectDataFile(node nodehandler.Node, targetRow int) bool {
 	var dataNodePos = node.GetIndexInDataNodes()
 	filePath := structSliceFileName("./temp", true, dataNodePos, file.FileFullName, dataNodePos, targetRow)
 	if fileExistedInCenter(filePath) {
-		glog.Infoln("[数据分块存在] "+filePath)
+		glog.Infoln("[数据分块存在] " + filePath)
 		return true
 	}
 	for fCount := 0; fCount < util.SysConfig.FaultNum; fCount++ {
@@ -128,11 +127,11 @@ func (file File) detectDataFile(node nodehandler.Node, targetRow int) bool {
 		glog.Info("Detecting Data File : " + "temp/Data." + strconv.Itoa(dataNodePos) + "/" + file.FileFullName + "." + strconv.Itoa(dataNodePos) + strconv.Itoa(targetRow))
 		//首先判断本地是否有该文件
 		if !file.detectRddtFile(rddtNodePos, k, startDataNodePos) {
-			glog.Warningf("当前k对应的校验文件不在中心节点 k=%d",k)
+			glog.Warningf("当前k对应的校验文件不在中心节点 k=%d", k)
 			//当前k对应的校验文件不在中心节点
 			//尝试从存储节点下载该校验分块
 			if !getOneFile(file, false, nodehandler.RddtNodes[rddtNodePos], k, startDataNodePos, rddtNodePos) {
-				glog.Warningf("未能取得校验分块 ID : %d, k : %d, DataNum : %d",nodehandler.RddtNodes[rddtNodePos],k,startDataNodePos)
+				glog.Warningf("未能取得校验分块 ID : %d, k : %d, DataNum : %d", nodehandler.RddtNodes[rddtNodePos], k, startDataNodePos)
 				//未取得校验文件
 				if fCount == util.SysConfig.FaultNum-1 {
 					//直到最后一种斜率也不行
@@ -141,8 +140,8 @@ func (file File) detectDataFile(node nodehandler.Node, targetRow int) bool {
 				continue
 			}
 		}
-		if !file.detectKLine(dataNodePos, targetRow, rddtNodePos, k,false) {
-			glog.Warningf("码链不符合条件 ID : %d, k : %d, DataNum : %d",nodehandler.RddtNodes[rddtNodePos],k,startDataNodePos)
+		if !file.detectKLine(dataNodePos, targetRow, rddtNodePos, k, false) {
+			glog.Warningf("码链不符合条件 ID : %d, k : %d, DataNum : %d", nodehandler.RddtNodes[rddtNodePos], k, startDataNodePos)
 			if fCount == util.SysConfig.FaultNum-1 {
 				//直到最后一种斜率也不行
 				return false
@@ -157,7 +156,7 @@ func (file File) detectDataFile(node nodehandler.Node, targetRow int) bool {
 			var pairRddtNodePos int
 			var startDataIndex = (dataNodePos + k*pairTargetRow + len(nodehandler.DataNodes)) % len(nodehandler.DataNodes)
 			if k > 0 {
-				if fCount+1>=util.SysConfig.FaultNum{
+				if fCount+1 >= util.SysConfig.FaultNum {
 					continue
 				}
 				pairRddtNodePos = ((fCount+1)*len(nodehandler.DataNodes) + startDataIndex) / util.SysConfig.RowNum
@@ -188,17 +187,17 @@ func (file File) detectRddtFile(rddtNodePos, k, startDataNodePos int) bool {
 }
 
 //detectKLine 检测一条码链上的所有数据文件
-func (file File) detectKLine(dataToRestoreNodePos, targetRow, rddtNodePos, k int,forRddt bool) bool {
+func (file File) detectKLine(dataToRestoreNodePos, targetRow, rddtNodePos, k int, forRddt bool) bool {
 	//glog.Infof("[检测码链] dataNodePos : %d, targetRow : %d, rddtNodePos : %d, k : %d",dataToRestoreNodePos, targetRow, rddtNodePos, k)
 	//对于每个分块，result = result && ( centerExisted || getFromNode )
 	var result = true
 	var startIndex = (dataToRestoreNodePos - k*targetRow + len(nodehandler.DataNodes)) % len(nodehandler.DataNodes)
 	for rowCount := 0; rowCount < util.SysConfig.RowNum; rowCount++ {
-		if targetRow == rowCount && !forRddt{
+		if targetRow == rowCount && !forRddt {
 			continue
 		}
-		targetDataPos:=(startIndex+rowCount*k+len(nodehandler.DataNodes))%len(nodehandler.DataNodes)
-		filePath := structSliceFileName("./temp", true,targetDataPos , file.FileFullName, targetDataPos, rowCount)
+		targetDataPos := (startIndex + rowCount*k + len(nodehandler.DataNodes)) % len(nodehandler.DataNodes)
+		filePath := structSliceFileName("./temp", true, targetDataPos, file.FileFullName, targetDataPos, rowCount)
 
 		//先看中心节点有没有
 		resultCenter := fileExistedInCenter(filePath)
@@ -216,14 +215,14 @@ func (file File) detectKLine(dataToRestoreNodePos, targetRow, rddtNodePos, k int
 
 //fileExistInNode 查看某个文件能否从节点获取
 func fileExistInNode(file File, isData bool, nodeID uint, posiX, posiY, rddtNodePos int) bool {
-	existed:=getOneFile(file, isData, nodeID, posiX, posiY, rddtNodePos)
+	existed := getOneFile(file, isData, nodeID, posiX, posiY, rddtNodePos)
 	//glog.Infof("[File Exist in Node] file %s, nodeID %d, posiX %d, posiY %d",file.FileFullName, nodeID, posiX, posiY)
 	return existed
 }
 
 //restoreDataFile 解码恢复单个数据分块
 func (file File) restoreDataFile(dataNodePos, rddtNodePos, k, targetRow int) {
-	glog.Infof("[restoreDataFile] dataNodePos :%d, rddtNodePos :%d, k :%d, targetRow :%d,",dataNodePos,rddtNodePos,k,targetRow)
+	glog.Infof("[restoreDataFile] dataNodePos :%d, rddtNodePos :%d, k :%d, targetRow :%d,", dataNodePos, rddtNodePos, k, targetRow)
 	var startIndex = (dataNodePos - k*targetRow + len(nodehandler.DataNodes)) % len(nodehandler.DataNodes)
 	buffer := make([]byte, file.sliceSize)
 	filePath := structSliceFileName("./temp", false, rddtNodePos, file.FileFullName, k, startIndex)

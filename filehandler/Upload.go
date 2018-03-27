@@ -10,9 +10,9 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/Vaaaas/MatrixFS/glog"
 	"github.com/Vaaaas/MatrixFS/nodehandler"
 	"github.com/Vaaaas/MatrixFS/util"
-	"github.com/golang/glog"
 )
 
 //复制文件，可用于生成数据副本和校验副本
@@ -311,8 +311,8 @@ func postOneFile(file File, isData bool, nodeID uint, posiX, posiY, nodeCounter 
 	defer resp.Body.Close()
 	//获取response
 	_, err = ioutil.ReadAll(resp.Body)
-	if resp.StatusCode != 200{
-		glog.Errorf("[PostOneFile] ERROR Status Code : %d",resp.StatusCode)
+	if resp.StatusCode != 200 {
+		glog.Errorf("[PostOneFile] ERROR Status Code : %d", resp.StatusCode)
 	}
 	if err != nil {
 		glog.Errorln(err)

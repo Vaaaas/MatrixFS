@@ -14,12 +14,21 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Vaaaas/MatrixFS/nodehandler"
+	"github.com/Vaaaas/MatrixFS/glog"
 	"github.com/Vaaaas/MatrixFS/util"
-	"github.com/golang/glog"
 )
 
-var nodeInfo nodehandler.Node
+//Node 节点结构体
+type Node struct {
+	ID       uint    `json:"ID"`
+	Address  net.IP  `json:"Address"`
+	Port     int     `json:"Port"`
+	Volume   float64 `json:"Volume"`
+	Status   bool    `json:"Status"`
+	LastTime int64   `json:"Lasttime"`
+}
+
+var nodeInfo Node
 var MasterAdd *net.TCPAddr
 var NodeAdd *net.TCPAddr
 
@@ -88,7 +97,7 @@ func main() {
 }
 
 func uploadHandler(_ http.ResponseWriter, r *http.Request) {
-	glog.Infoln("[UPLOAD] method: "+ r.Method)
+	glog.Infoln("[UPLOAD] method: " + r.Method)
 	if r.Method == "GET" {
 		glog.Warningln("[/UPLOAD] GET" + r.URL.Path)
 	} else {
@@ -105,7 +114,7 @@ func uploadHandler(_ http.ResponseWriter, r *http.Request) {
 			glog.Errorln(err)
 			panic(err)
 		}
-		f, err := os.Create(StorePath+"/"+longSpl[len(longSpl)-1])
+		f, err := os.Create(StorePath + "/" + longSpl[len(longSpl)-1])
 		if err != nil {
 			glog.Error(err)
 			panic(err)
@@ -171,7 +180,7 @@ func connectMaster() error {
 	return nil
 }
 
-func initStruct(nodeInfo *nodehandler.Node, address net.IP, port int, volume float64) error {
+func initStruct(nodeInfo *Node, address net.IP, port int, volume float64) error {
 	nodeInfo.Address = address
 	nodeInfo.Port = port
 	nodeInfo.Volume = volume
