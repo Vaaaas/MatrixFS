@@ -28,17 +28,17 @@ type Node struct {
 }
 
 var nodeInfo Node
-var MasterAdd *net.TCPAddr
-var NodeAdd *net.TCPAddr
 
-var StorePath string
+var masterAdd *net.TCPAddr
+var nodeAdd *net.TCPAddr
+var storePath string
 
 func main() {
 	var local string
 	var master string
 	flag.StringVar(&master, "master", "127.0.0.1:8080", "Master server IP & Port")
 	flag.StringVar(&local, "node", "127.0.0.1:9090", "Local Node IP & Port")
-	flag.StringVar(&StorePath, "stpath", "./storage", "Local Storage Path")
+	flag.StringVar(&storePath, "stpath", "./storage", "Local Storage Path")
 	//log_dir="./log"
 	flag.Parse()
 
@@ -49,19 +49,19 @@ func main() {
 		glog.Errorln(err)
 		panic(err)
 	}
-	err = os.MkdirAll(StorePath, 0766)
+	err = os.MkdirAll(storePath, 0766)
 	if err != nil {
 		glog.Errorln(err)
 		panic(err)
 	}
 
 	//初始化中心节点和本节点的IP
-	MasterAdd, err = net.ResolveTCPAddr("tcp4", master)
+	masterAdd, err = net.ResolveTCPAddr("tcp4", master)
 	if err != nil {
 		glog.Errorln(err)
 		panic(err)
 	}
-	NodeAdd, err = net.ResolveTCPAddr("tcp4", local)
+	nodeAdd, err = net.ResolveTCPAddr("tcp4", local)
 	if err != nil {
 		glog.Errorln(err)
 		panic(err)
@@ -74,10 +74,10 @@ func main() {
 	//获取存储节点本地存储路径的可用空间
 	diskUsage := NewDiskUsage(dir)
 	volume := (float64)(diskUsage.Available()) / (float64)(1024*1024*1024)
-	glog.Infof("Node start here : %d", NodeAdd.Port)
-	glog.Infof("Store Path: %s, Free space: %f", StorePath, volume)
+	glog.Infof("Node start here : %d", nodeAdd.Port)
+	glog.Infof("Store Path: %s, Free space: %f", storePath, volume)
 	nodeInfo.ID = 0
-	initStruct(&nodeInfo, NodeAdd.IP, NodeAdd.Port, volume)
+	initStruct(&nodeInfo, nodeAdd.IP, nodeAdd.Port, volume)
 	go func() {
 		for {
 			connectMaster()
@@ -88,8 +88,8 @@ func main() {
 	http.HandleFunc("/upload", uploadHandler)
 	http.HandleFunc("/delete", deleteHandler)
 	http.HandleFunc("/resetid", resetIDHandler)
-	http.Handle("/download/", http.StripPrefix("/download/", http.FileServer(http.Dir(StorePath))))
-	if err := http.ListenAndServe(":"+strconv.Itoa(NodeAdd.Port), nil); err != nil {
+	http.Handle("/download/", http.StripPrefix("/download/", http.FileServer(http.Dir(storePath))))
+	if err := http.ListenAndServe(":"+strconv.Itoa(nodeAdd.Port), nil); err != nil {
 		glog.Errorln(err)
 		panic(err)
 	}
@@ -108,12 +108,12 @@ func uploadHandler(_ http.ResponseWriter, r *http.Request) {
 		}
 		defer file.Close()
 		longSpl := strings.Split(handler.Filename, "/")
-		err = os.MkdirAll(StorePath+"/", 0766)
+		err = os.MkdirAll(storePath+"/", 0766)
 		if err != nil {
 			glog.Errorln(err)
 			panic(err)
 		}
-		f, err := os.Create(StorePath + "/" + longSpl[len(longSpl)-1])
+		f, err := os.Create(storePath + "/" + longSpl[len(longSpl)-1])
 		if err != nil {
 			glog.Error(err)
 			panic(err)
@@ -127,10 +127,10 @@ func deleteHandler(_ http.ResponseWriter, r *http.Request) {
 	if r.Method == "DELETE" {
 		fileName := r.Header.Get("fileName")
 		glog.Info("File to Delete : " + fileName)
-		if _, err := os.Stat(StorePath + "/" + fileName); os.IsNotExist(err) {
-			glog.Warningf("[File to Delete NOT EXIST] %s", StorePath+"/"+fileName)
+		if _, err := os.Stat(storePath + "/" + fileName); os.IsNotExist(err) {
+			glog.Warningf("[File to Delete NOT EXIST] %s", storePath+"/"+fileName)
 		} else {
-			err := os.Remove(StorePath + "/" + fileName)
+			err := os.Remove(storePath + "/" + fileName)
 			if err != nil {
 				glog.Errorln(err)
 			}
@@ -167,7 +167,7 @@ func connectMaster() error {
 	nodeInfo.Volume = volume
 	b := new(bytes.Buffer)
 	json.NewEncoder(b).Encode(nodeInfo)
-	res, err := http.Post("http://"+MasterAdd.String()+"/greet", "application/json; charset=utf-8", b)
+	res, err := http.Post("http://"+masterAdd.String()+"/greet", "application/json; charset=utf-8", b)
 	if err != nil {
 		glog.Error(err)
 	}
