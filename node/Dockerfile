@@ -1,4 +1,4 @@
-FROM golang:latest
+FROM golang:latest-alpine
 
 RUN go get github.com/golang/glog
 RUN go get github.com/Vaaaas/MatrixFS/node
