@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"html/template"
 	"io"
 	"net/http"
 	"os"
@@ -33,20 +32,8 @@ func RootHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		//TODO: 什么情况下到这里
-		if r.URL.Path == "/favicon.ico" {
-			glog.Infoln("[/favicon.ico] " + r.URL.Path)
-			http.ServeFile(w, r, "favicon.ico")
-		} else if r.URL.Path == "/image/gopher_head.png" {
-			glog.Infoln("[/favicon.ico] " + r.URL.Path)
-			http.ServeFile(w, r, "image/gopher_head.png")
-		} else {
-			glog.Errorln("[/] " + r.URL.Path)
-			t, err := template.ParseFiles("view/404.html")
-			if err != nil {
-				glog.Errorln(err)
-			}
-			t.Execute(w, nil)
-		}
+		glog.Errorln("[/] " + r.URL.Path)
+		F0fTpl.Execute(w, nil)
 	}
 }
 
@@ -60,11 +47,7 @@ func IndexPageHandler(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/file", http.StatusFound)
 		}
 	} else {
-		t, err := template.ParseFiles("view/index.html")
-		if err != nil {
-			glog.Errorln(err)
-		}
-		t.Execute(w, nil)
+		IndexTpl.Execute(w, nil)
 	}
 }
 
@@ -106,12 +89,7 @@ func NodeEnterHandler(w http.ResponseWriter, r *http.Request) {
 		Nodes:        resultMap,
 		SystemStatus: util.SysConfig.Status,
 	}
-
-	t, err := template.ParseFiles("view/node.html")
-	if err != nil {
-		glog.Errorln(err)
-	}
-	t.Execute(w, data)
+	NodeTpl.Execute(w, data)
 }
 
 func FilePageHandler(w http.ResponseWriter, r *http.Request) {
@@ -127,21 +105,14 @@ func FilePageHandler(w http.ResponseWriter, r *http.Request) {
 		result := value.(*filehandler.File)
 		resultList = append(resultList, *result)
 	}
-	t, err := template.ParseFiles("view/file.html")
-	if err != nil {
-		glog.Errorln(err)
-	}
-	t.Execute(w, resultList)
+
+	FileTpl.Execute(w, resultList)
 }
 
 func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		glog.Warningln("[/UPLOAD] GET " + r.URL.Path)
-		t, err := template.ParseFiles("view/404.html")
-		if err != nil {
-			glog.Errorln(err)
-		}
-		t.Execute(w, nil)
+		F0fTpl.Execute(w, nil)
 	} else {
 		glog.Infoln("[UPLOAD] " + r.URL.Path)
 		r.ParseMultipartForm(32 << 20)
@@ -264,28 +235,20 @@ func RestoreHandler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/node", http.StatusFound)
 	} else if len(nodehandler.LostNodes) > util.SysConfig.FaultNum {
 		glog.Warningf("丢失节点数 : %d", len(nodehandler.LostNodes))
-		t, err := template.ParseFiles("view/info.html")
 		data := struct {
 			info string
 		}{
 			info: "丢失节点数超过可容错数.",
 		}
-		if err != nil {
-			glog.Errorln(err)
-		}
-		t.Execute(w, data)
+		InfoTpl.Execute(w, data)
 	} else if len(nodehandler.EmptyNodes) < len(nodehandler.LostNodes) {
 		glog.Warningf("丢失节点数 : %d 大于最大容错数", len(nodehandler.LostNodes))
-		t, err := template.ParseFiles("view/info.html")
 		data := struct {
 			info string
 		}{
 			info: "没有足够的空节点用于恢复.",
 		}
-		if err != nil {
-			glog.Errorln(err)
-		}
-		t.Execute(w, data)
+		InfoTpl.Execute(w, data)
 	} else {
 		glog.Infoln("开始将空节点转换至丢失节点")
 		//处理丢失节点，将空节点转化为丢失节点，为空节点设置新ID
@@ -333,16 +296,12 @@ func RestoreHandler(w http.ResponseWriter, r *http.Request) {
 		//系统状态设为正常
 		util.SysConfig.Status = true
 		//前端显示信息提示页面
-		t, err := template.ParseFiles("view/info.html")
 		data := struct {
 			info string
 		}{
 			info: "Restore Finished!",
 		}
-		if err != nil {
-			glog.Errorln(err)
-		}
-		t.Execute(w, data)
+		InfoTpl.Execute(w, data)
 	}
 }
 

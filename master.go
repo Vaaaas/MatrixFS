@@ -49,10 +49,6 @@ func main() {
 	http.HandleFunc("/download", server.DownloadHandler)
 	http.HandleFunc("/restore", server.RestoreHandler)
 
-	//文件服务
-	http.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.Dir("./js/"))))
-	http.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("./css/"))))
-
 	//定时遍历所有节点，比较最后访问时间
 	go func() {
 		for {
