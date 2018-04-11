@@ -36,18 +36,10 @@ logs
 #IDEA ide files
 .idea
 
-matrix/log/
-
-matrix/temp/
-
 .vscode/launch.json
 
 *.iml
 
 *.exe
 
-node/Node*
-/node/log*/
-/node/storage*/
-/matrix/Matrix
 .DS_Store
