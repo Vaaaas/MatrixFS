@@ -2,6 +2,7 @@ package nodehandler
 
 import (
 	"net"
+	"time"
 
 	"io/ioutil"
 	"net/http"
@@ -48,6 +49,57 @@ const (
 	MB = 1024 * KB
 	GB = 1024 * MB
 )
+
+//NodeStatusDetect 节点状态监控
+func NodeStatusDetect() {
+	for {
+		now := time.Now().UnixNano() / 1000000
+		allNodesListTemp := AllNodes.Items()
+		for key, value := range allNodesListTemp {
+			converted, _ := value.(Node)
+			key, _ := key.(uint)
+			if now-converted.LastTime > 6000 {
+				converted.Status = false
+				AllNodes.Set(key, converted)
+				onDeleted(&converted)
+			}
+		}
+		time.Sleep(5 * time.Second)
+	}
+}
+
+//onDeleted 节点丢失处理
+func onDeleted(node *Node) {
+	var isEmpty = false
+	for _, value := range EmptyNodes {
+		if value == node.ID {
+			glog.Info("已在空节点列表中找到丢失的空节点")
+			isEmpty = true
+		}
+	}
+
+	if isEmpty {
+		//If Empty Node Lost, delete from all & Empty Slices
+		AllNodes.Delete(node.ID)
+		index := util.GetIndexInAll(len(EmptyNodes), func(i int) bool {
+			return EmptyNodes[i] == node.ID
+		})
+		EmptyNodes = append(EmptyNodes[:index], EmptyNodes[index+1:]...)
+		glog.Warning("空节点丢失，已删除空节点")
+	} else {
+		var lostExist = false
+		for _, value := range LostNodes {
+			if value == node.ID {
+				lostExist = true
+			}
+		}
+		if !lostExist {
+			LostNodes = append(LostNodes, node.ID)
+			util.SysConfig.Status = false
+			glog.Warningf("新的丢失节点, SysConfigure 变为 false, 丢失节点ID : %d", node.ID)
+		}
+	}
+}
 
 // AppendNode Node的成员 将空节点加入数据或校验节点列表（如果全部满，则仍为空节点）
 func (node Node) AppendNode() bool {

@@ -222,14 +222,18 @@ func (file File) initOneRddtFile(startNodeNum, k, rddtNodePos int) error {
 func (file File) SendToNode() {
 	//发送数据分块
 	for i := 0; i < util.SysConfig.DataNum; i++ {
+		//当有节点丢失且当前分块需要发往丢失节点时，直接跳过
+		node := nodehandler.AllNodes.Get(nodehandler.DataNodes[i]).(nodehandler.Node)
+		if util.SysConfig.Status == false && node.Status == false {
+			continue
+		}
+
 		if file.Size <= 1000 {
-			postOneFile(file, true, nodehandler.DataNodes[i], i, 0, 0)
-		} else {
-			//当有节点丢失且当前分块需要发往丢失节点时，直接跳过
 			node := nodehandler.AllNodes.Get(nodehandler.DataNodes[i]).(nodehandler.Node)
-			if util.SysConfig.Status == false && node.Status == false {
-				continue
+			if node.Status == true {
+				postOneFile(file, true, nodehandler.DataNodes[i], i, 0, 0)
 			}
+		} else {
 			for j := 0; j < util.SysConfig.RowNum; j++ {
 				postOneFile(file, true, nodehandler.DataNodes[i], i, j, 0)
 			}
@@ -238,7 +242,10 @@ func (file File) SendToNode() {
 	//发送校验分块
 	if file.Size <= 1000 {
 		for i := 0; i < util.SysConfig.RddtNum; i++ {
-			postOneFile(file, false, nodehandler.RddtNodes[i], i, 0, 0)
+			node := nodehandler.AllNodes.Get(nodehandler.RddtNodes[i]).(nodehandler.Node)
+			if node.Status == true {
+				postOneFile(file, false, nodehandler.RddtNodes[i], i, 0, 0)
+			}
 		}
 	} else {
 		nodeCounter := 0
@@ -248,7 +255,7 @@ func (file File) SendToNode() {
 			k := (int)((xx + 2) / 2 * (int)(math.Pow(-1, (float64)(xx+2))))
 			for fileCounter < util.SysConfig.DataNum {
 				node := nodehandler.AllNodes.Get(nodehandler.RddtNodes[nodeCounter]).(nodehandler.Node)
-				if util.SysConfig.Status == true && node.Status == true {
+				if node.Status == true {
 					postOneFile(file, false, nodehandler.RddtNodes[nodeCounter], k, fileCounter, nodeCounter)
 				}
 				fileCounter++

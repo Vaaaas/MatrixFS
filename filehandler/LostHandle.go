@@ -66,7 +66,7 @@ func (file *File) LostHandle() bool {
 		if len(dataNodes) != 0 {
 			//有数据节点丢失
 			var recFinish = true
-			for row := 0; row < util.SysConfig.RowNum/2+1; row++ {
+			for row := 0; row < util.SysConfig.RowNum; row++ {
 				var rowResult = true
 				for col := 0; col < len(dataNodes); col++ {
 					//检测并恢复单个文件
@@ -78,7 +78,7 @@ func (file *File) LostHandle() bool {
 			}
 			for !recFinish {
 				recFinish = true
-				for row := 0; row < util.SysConfig.RowNum/2+1; row++ {
+				for row := 0; row < util.SysConfig.RowNum; row++ {
 					var rowResult = true
 					for col := 0; col < len(dataNodes); col++ {
 						//检测并恢复单个文件
@@ -128,17 +128,12 @@ func (file File) detectDataFile(node nodehandler.Node, targetRow int) bool {
 		//首先判断本地是否有该文件
 		if !file.detectRddtFile(rddtNodePos, k, startDataNodePos) {
 			glog.Warningf("当前k对应的校验文件不在中心节点 k=%d", k)
-			//当前k对应的校验文件不在中心节点
-			//尝试从存储节点下载该校验分块
-			if !getOneFile(file, false, nodehandler.RddtNodes[rddtNodePos], k, startDataNodePos, rddtNodePos) {
-				glog.Warningf("未能取得校验分块 ID : %d, k : %d, DataNum : %d", nodehandler.RddtNodes[rddtNodePos], k, startDataNodePos)
-				//未取得校验文件
-				if fCount == util.SysConfig.FaultNum-1 {
-					//直到最后一种斜率也不行
-					return false
-				}
-				continue
+			//当前k对应的校验文件不在中心节点或存储节点丢失
+			if fCount == util.SysConfig.FaultNum-1 {
+				//直到最后一种斜率也不行
+				return false
 			}
+			continue
 		}
 		if !file.detectKLine(dataNodePos, targetRow, rddtNodePos, k, false) {
 			glog.Warningf("码链不符合条件 ID : %d, k : %d, DataNum : %d", nodehandler.RddtNodes[rddtNodePos], k, startDataNodePos)
@@ -153,20 +148,27 @@ func (file File) detectDataFile(node nodehandler.Node, targetRow int) bool {
 		//收集对称数据分块对应的校验文件和码链
 		pairTargetRow := util.SysConfig.RowNum - targetRow - 1
 		if pairTargetRow != targetRow {
-			var pairRddtNodePos int
-			var startDataIndex = (dataNodePos + k*pairTargetRow + len(nodehandler.DataNodes)) % len(nodehandler.DataNodes)
-			if k > 0 {
-				if fCount+1 >= util.SysConfig.FaultNum {
-					continue
+			filePath = structSliceFileName("./temp", true, dataNodePos, file.FileFullName, dataNodePos, pairTargetRow)
+			if !fileExistedInCenter(filePath) {
+				var pairRddtNodePos int
+				var startDataIndex = (dataNodePos + k*pairTargetRow + len(nodehandler.DataNodes)) % len(nodehandler.DataNodes)
+				if k > 0 {
+					if fCount+1 >= util.SysConfig.FaultNum {
+						continue
+					}
+					pairRddtNodePos = ((fCount+1)*len(nodehandler.DataNodes) + startDataIndex) / util.SysConfig.RowNum
+				} else {
+					pairRddtNodePos = ((fCount-1)*len(nodehandler.DataNodes) + startDataIndex) / util.SysConfig.RowNum
 				}
-				pairRddtNodePos = ((fCount+1)*len(nodehandler.DataNodes) + startDataIndex) / util.SysConfig.RowNum
-			} else {
-				pairRddtNodePos = ((fCount-1)*len(nodehandler.DataNodes) + startDataIndex) / util.SysConfig.RowNum
-			}
-			if file.detectRddtFile(pairRddtNodePos, -k, startDataIndex) {
-				if file.detectKLine(dataNodePos, pairTargetRow, pairRddtNodePos, -k, false) {
-					file.restoreDataFile(dataNodePos, pairRddtNodePos, -k, pairTargetRow)
-					postOneFile(file, true, nodehandler.DataNodes[dataNodePos], dataNodePos, pairTargetRow, 0)
+				if file.detectRddtFile(pairRddtNodePos, -k, startDataIndex) {
+					if file.detectKLine(dataNodePos, pairTargetRow, pairRddtNodePos, -k, false) {
+						file.restoreDataFile(dataNodePos, pairRddtNodePos, -k, pairTargetRow)
+						postOneFile(file, true, nodehandler.DataNodes[dataNodePos], dataNodePos, pairTargetRow, 0)
+					}else{
+						return false
+					}
+				}else{
+					return false
 				}
 			}
 		}

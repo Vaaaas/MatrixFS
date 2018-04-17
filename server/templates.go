@@ -337,7 +337,7 @@ var InfoTpl = template.Must(template.New("Info").Parse(`
     <div class="row">
         <div class="span12">
             <div class="hero-unit center">
-                <h1><font face="Tahoma" color="red">{{.info}}</font></h1>
+                <h1><font face="Tahoma">{{.}}</font></h1>
                 <br />
             </div>
             <br />

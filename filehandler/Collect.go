@@ -23,13 +23,14 @@ func (file File) CollectFiles() {
 				rddtNodes = append(rddtNodes, nodehandler.LostNodes[col])
 			}
 		}
+
 		if len(dataNodes) != 0 {
-			// 有数据节点丢失
+			//有数据节点丢失
 			var recFinish = true
-			for row := 0; row < util.SysConfig.RowNum/2+1; row++ {
+			for row := 0; row < util.SysConfig.RowNum; row++ {
 				var rowResult = true
 				for col := 0; col < len(dataNodes); col++ {
-					// 检测并恢复单个文件
+					//检测并恢复单个文件
 					node := nodehandler.AllNodes.Get(dataNodes[col]).(nodehandler.Node)
 					colResult := file.detectDataFile(node, row)
 					rowResult = rowResult && colResult
@@ -38,10 +39,10 @@ func (file File) CollectFiles() {
 			}
 			for !recFinish {
 				recFinish = true
-				for row := 0; row < util.SysConfig.RowNum/2+1; row++ {
+				for row := 0; row < util.SysConfig.RowNum; row++ {
 					var rowResult = true
 					for col := 0; col < len(dataNodes); col++ {
-						// 检测并恢复单个文件
+						//检测并恢复单个文件
 						node := nodehandler.AllNodes.Get(dataNodes[col]).(nodehandler.Node)
 						colResult := file.detectDataFile(node, row)
 						rowResult = rowResult && colResult

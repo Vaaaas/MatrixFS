@@ -7,7 +7,6 @@ import (
 	"os"
 	"strconv"
 	"time"
-
 	"sync"
 
 	"github.com/Vaaaas/MatrixFS/filehandler"
@@ -143,7 +142,8 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		//删除所有临时文件
 		file01.DeleteAllTempFiles()
 		glog.Infof("File upload & init finished %s, Content-Type: %s", handler.Filename, r.Header.Get("Content-Type"))
-		http.Redirect(w, r, "/file", http.StatusFound)
+		info:= "上传文件完成"
+		InfoTpl.Execute(w, info)
 	}
 }
 
@@ -235,20 +235,12 @@ func RestoreHandler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/node", http.StatusFound)
 	} else if len(nodehandler.LostNodes) > util.SysConfig.FaultNum {
 		glog.Warningf("丢失节点数 : %d", len(nodehandler.LostNodes))
-		data := struct {
-			info string
-		}{
-			info: "丢失节点数超过可容错数.",
-		}
-		InfoTpl.Execute(w, data)
+		info:="丢失节点数超过可容错数."
+		InfoTpl.Execute(w, info)
 	} else if len(nodehandler.EmptyNodes) < len(nodehandler.LostNodes) {
 		glog.Warningf("丢失节点数 : %d 大于最大容错数", len(nodehandler.LostNodes))
-		data := struct {
-			info string
-		}{
-			info: "没有足够的空节点用于恢复.",
-		}
-		InfoTpl.Execute(w, data)
+		info:="没有足够的空节点用于恢复."
+		InfoTpl.Execute(w, info)
 	} else {
 		glog.Infoln("开始将空节点转换至丢失节点")
 		//处理丢失节点，将空节点转化为丢失节点，为空节点设置新ID
@@ -296,12 +288,8 @@ func RestoreHandler(w http.ResponseWriter, r *http.Request) {
 		//系统状态设为正常
 		util.SysConfig.Status = true
 		//前端显示信息提示页面
-		data := struct {
-			info string
-		}{
-			info: "Restore Finished!",
-		}
-		InfoTpl.Execute(w, data)
+		info:="系统恢复完成"
+		InfoTpl.Execute(w, info)
 	}
 }
 

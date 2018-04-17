@@ -36,6 +36,7 @@ var storePath string
 func main() {
 	var local string
 	var master string
+
 	flag.StringVar(&master, "master", "127.0.0.1:8080", "Master server IP & Port")
 	flag.StringVar(&local, "node", "127.0.0.1:9090", "Local Node IP & Port")
 	flag.StringVar(&storePath, "stpath", "./storage", "Local Storage Path")
