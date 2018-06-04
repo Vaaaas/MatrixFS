@@ -58,13 +58,13 @@ func NodeStatusDetect() {
 		for key, value := range allNodesListTemp {
 			converted, _ := value.(Node)
 			key, _ := key.(uint)
-			if now-converted.LastTime > 6000 {
+			if now-converted.LastTime > 4000 {
 				converted.Status = false
 				AllNodes.Set(key, converted)
 				onDeleted(&converted)
 			}
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(4 * time.Second)
 	}
 }
 
@@ -175,4 +175,5 @@ func EmptyNodeToLostNode(empID, lostID uint) {
 	node.ID = lostID
 	node.Status = false
 	AllNodes.Set(lostID, node)
+	AllNodes.Delete(empID)
 }

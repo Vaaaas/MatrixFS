@@ -14,6 +14,7 @@ import (
 
 // DeleteSlices 处理用户删除文件的请求
 func (file File) DeleteSlices() {
+	glog.Warningf("DeleteSlices")
 	for i := 0; i < util.SysConfig.DataNum; i++ {
 		if file.Size <= 1000 {
 			// 只需删除第一个
@@ -67,6 +68,7 @@ func deleteOneFile(file File, isData bool, nodeID uint, posiX, posiY int) {
 	node := nodehandler.AllNodes.Get(nodeID).(nodehandler.Node)
 	url := "http://" + node.Address.String() + ":" + strconv.Itoa(node.Port) + "/delete"
 	// 设定发送至存储节点的删除请求
+
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
 		glog.Errorln(err)

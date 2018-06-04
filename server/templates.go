@@ -29,7 +29,7 @@ var F0fTpl = template.Must(template.New("404Page").Parse(`
         <div id="navbar" class="navbar-collapse collapse">
             <ul class="nav navbar-nav navbar-right">
                 <li><a href="./file">文件管理</a></li>
-                <li><a href="#">帮助</a></li>
+                <li><a href="https://github.com/Vaaaas/MatrixFS">帮助</a></li>
             </ul>
         </div>
     </div>
@@ -160,7 +160,7 @@ var FileTpl = template.Must(template.New("File").Parse(`
         <div id="navbar" class="navbar-collapse collapse">
             <ul class="nav navbar-nav navbar-right">
                 <li><a href="./node">系统信息</a></li>
-                <li><a href="#">帮助</a></li>
+                <li><a href="https://github.com/Vaaaas/MatrixFS">帮助</a></li>
             </ul>
         </div>
     </div>
@@ -249,7 +249,7 @@ var NodeTpl = template.Must(template.New("Node").Parse(`
         <div id="navbar" class="navbar-collapse collapse">
             <ul class="nav navbar-nav navbar-right">
                 <li><a href="./file">文件管理</a></li>
-                <li><a href="#">帮助</a></li>
+                <li><a href="https://github.com/Vaaaas/MatrixFS">帮助</a></li>
             </ul>
         </div>
     </div>
@@ -323,8 +323,8 @@ var InfoTpl = template.Must(template.New("Info").Parse(`
         </div>
         <div id="navbar" class="navbar-collapse collapse">
             <ul class="nav navbar-nav navbar-right">
-                <li><a href="./node">系统信息</a></li>
-                <li><a href="#">帮助</a></li>
+                <li><a href="./file">文件管理</a></li>
+                <li><a href="https://github.com/Vaaaas/MatrixFS">帮助</a></li>
             </ul>
         </div>
     </div>

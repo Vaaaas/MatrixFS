@@ -30,7 +30,6 @@ func RootHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	} else {
-		//TODO: 什么情况下到这里
 		glog.Errorln("[/] " + r.URL.Path)
 		F0fTpl.Execute(w, nil)
 	}
@@ -277,7 +276,7 @@ func RestoreHandler(w http.ResponseWriter, r *http.Request) {
 
 		//删除已转化的空节点
 		for i := 0; i < len(nodehandler.LostNodes); i++ {
-			//glog.Warningf("[Delete removed empty nodes] i = %d",i)
+			glog.Warningf("[Delete removed empty nodes] i = %d",i)
 			nodehandler.AllNodes.Delete(nodehandler.EmptyNodes[0])
 			if len(nodehandler.EmptyNodes) > 0 {
 				nodehandler.EmptyNodes = append(nodehandler.EmptyNodes[:0], nodehandler.EmptyNodes[1:]...)

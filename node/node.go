@@ -82,7 +82,7 @@ func main() {
 	go func() {
 		for {
 			connectMaster()
-			time.Sleep(4 * time.Second)
+			time.Sleep(3 * time.Second)
 		}
 	}()
 

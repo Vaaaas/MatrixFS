@@ -55,7 +55,7 @@ func (file *File) LostHandle() bool {
 		var rddtNodes []uint
 		//找出所有数据节点
 		for col := 0; col < len(nodehandler.LostNodes); col++ {
-			glog.Infof("需要检测节点 ID : %d", nodehandler.LostNodes[col])
+			//glog.Infof("需要检测节点 ID : %d", nodehandler.LostNodes[col])
 			if nodehandler.IsDataNode(nodehandler.LostNodes[col]) {
 				dataNodes = append(dataNodes, nodehandler.LostNodes[col])
 			} else {
@@ -88,6 +88,13 @@ func (file *File) LostHandle() bool {
 					}
 					recFinish = recFinish && rowResult
 				}
+			}
+		}
+		for col := 0; col < len(dataNodes); col++ {
+			//检测并恢复单个文件
+			node := nodehandler.AllNodes.Get(dataNodes[col]).(nodehandler.Node)
+			for rowPost:=0;rowPost<util.SysConfig.RowNum;rowPost++{
+				postOneFile(*file, true, nodehandler.DataNodes[node.GetIndexInDataNodes()], node.GetIndexInDataNodes(), rowPost, 0)
 			}
 		}
 		glog.Infoln("开始恢复校验分块")
@@ -124,7 +131,7 @@ func (file File) detectDataFile(node nodehandler.Node, targetRow int) bool {
 		k := (int)((fCount + 2) / 2 * (int)(math.Pow(-1, (float64)(fCount+2))))
 		var startDataNodePos = (node.GetIndexInDataNodes() - targetRow*k + len(nodehandler.DataNodes)) % len(nodehandler.DataNodes)
 		var rddtNodePos = (fCount*len(nodehandler.DataNodes) + startDataNodePos) / util.SysConfig.RowNum
-		glog.Info("Detecting Data File : " + "temp/Data." + strconv.Itoa(dataNodePos) + "/" + file.FileFullName + "." + strconv.Itoa(dataNodePos) + strconv.Itoa(targetRow))
+		//glog.Info("Detecting Data File : " + "temp/Data." + strconv.Itoa(dataNodePos) + "/" + file.FileFullName + "." + strconv.Itoa(dataNodePos) + strconv.Itoa(targetRow))
 		//首先判断本地是否有该文件
 		if !file.detectRddtFile(rddtNodePos, k, startDataNodePos) {
 			glog.Warningf("当前k对应的校验文件不在中心节点 k=%d", k)
@@ -136,7 +143,7 @@ func (file File) detectDataFile(node nodehandler.Node, targetRow int) bool {
 			continue
 		}
 		if !file.detectKLine(dataNodePos, targetRow, rddtNodePos, k, false) {
-			glog.Warningf("码链不符合条件 ID : %d, k : %d, DataNum : %d", nodehandler.RddtNodes[rddtNodePos], k, startDataNodePos)
+			//glog.Warningf("码链不符合条件 ID : %d, k : %d, DataNum : %d", nodehandler.RddtNodes[rddtNodePos], k, startDataNodePos)
 			if fCount == util.SysConfig.FaultNum-1 {
 				//直到最后一种斜率也不行
 				return false
@@ -144,7 +151,7 @@ func (file File) detectDataFile(node nodehandler.Node, targetRow int) bool {
 			continue
 		}
 		file.restoreDataFile(dataNodePos, rddtNodePos, k, targetRow)
-		postOneFile(file, true, nodehandler.DataNodes[dataNodePos], dataNodePos, targetRow, 0)
+		//postOneFile(file, true, nodehandler.DataNodes[dataNodePos], dataNodePos, targetRow, 0)
 		//收集对称数据分块对应的校验文件和码链
 		pairTargetRow := util.SysConfig.RowNum - targetRow - 1
 		if pairTargetRow != targetRow {
@@ -163,7 +170,7 @@ func (file File) detectDataFile(node nodehandler.Node, targetRow int) bool {
 				if file.detectRddtFile(pairRddtNodePos, -k, startDataIndex) {
 					if file.detectKLine(dataNodePos, pairTargetRow, pairRddtNodePos, -k, false) {
 						file.restoreDataFile(dataNodePos, pairRddtNodePos, -k, pairTargetRow)
-						postOneFile(file, true, nodehandler.DataNodes[dataNodePos], dataNodePos, pairTargetRow, 0)
+						//postOneFile(file, true, nodehandler.DataNodes[dataNodePos], dataNodePos, pairTargetRow, 0)
 					}else{
 						return false
 					}

@@ -13,10 +13,12 @@ import (
 // CollectFiles 从存储节点收集全部分块文件到中心节点
 func (file File) CollectFiles() {
 	if !util.SysConfig.Status && file.Size > 1000 {
+
 		var dataNodes []uint
 		var rddtNodes []uint
 		//找出所有数据节点
 		for col := 0; col < len(nodehandler.LostNodes); col++ {
+			//glog.Infof("需要检测节点 ID : %d", nodehandler.LostNodes[col])
 			if nodehandler.IsDataNode(nodehandler.LostNodes[col]) {
 				dataNodes = append(dataNodes, nodehandler.LostNodes[col])
 			} else {
@@ -79,7 +81,7 @@ func getOneFile(file File, isData bool, nodeID uint, posiX, posiY, rddtNodePos i
 	node := nodehandler.AllNodes.Get(nodeID).(nodehandler.Node)
 	url := "http://" + node.Address.String() + ":" + strconv.Itoa(node.Port) + "/download/" + fileName
 	res, _ := http.Get(url)
-	if res.StatusCode != 200 {
+	if res==nil||res.StatusCode != 200 {
 		return false
 	}
 	fileGet, _ := os.Create(filePath)

@@ -294,7 +294,7 @@ func postOneFile(file File, isData bool, nodeID uint, posiX, posiY, nodeCounter 
 	//打开文件句柄操作
 	fh, err := os.Open(filePath)
 	if err != nil {
-		glog.Errorln("error opening file + %s", err)
+		glog.Errorln("error opening file ",err)
 		panic(err)
 	}
 	defer fh.Close()
