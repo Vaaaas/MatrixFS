@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 go get github.com/golang/glog
 mkdir -p $HOME/MatrixFS/node;
+
+
 cd $HOME/MatrixFS/node;
 port=9000
 #3 Faults 3 Rows
